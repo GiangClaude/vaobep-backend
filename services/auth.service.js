@@ -85,7 +85,7 @@ class AuthService {
         // Generate token
         const token = authUtils.generateToken(user.user_id);
 
-        return { token, user: { id: user.user_id, name: user.name, email: user.email } };
+        return { token, user: { id: user.user_id, name: user.full_name, email: user.email, role: user.role } };
     }
 
     /**

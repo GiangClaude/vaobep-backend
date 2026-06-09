@@ -3,7 +3,7 @@ const db = require('../config/db');
 const { buildRecipeQuery } = require('../utils/recipe.utils');
 const pool = db.pool;
 const { v4: uuidv4 } = require('uuid');
-
+const {parseTagsData} = require('../utils/helper.utils')
 const FEATURE_CRITERIA = {
     MIN_LIKES: 2,
     MAX_REPORTS: 2,
@@ -651,15 +651,39 @@ class Recipe{
         }
     }
 
+/**
+     * Lấy danh sách công thức nấu ăn có phân trang, bộ lọc và kiểm tra trạng thái tương tác của người dùng hiện tại.
+     * Đã cập nhật logic HAVING COUNT để bắt buộc công thức phải chứa TẤT CẢ các thẻ tag được chọn trong bộ lọc.
+     */
+/**
+     * Lấy danh sách công thức nấu ăn kèm theo phân trang, bộ lọc nâng cao và danh sách thẻ tags của từng món.
+     * Hàm này tự động kiểm tra trạng thái tương tác (Like/Save) của người dùng hiện tại nếu có.
+     * * @param {number} page - Trang hiện tại cần lấy dữ liệu
+     * @param {number} limit - Số lượng bản ghi tối đa trên một trang
+     * @param {object} filters - Object chứa các điều kiện lọc (tags, keyword, minRating...)
+     * @param {string|null} currentUserId - ID của người dùng đang đăng nhập hệ thống
+     * @returns {object} Trả về đối tượng gồm mảng danh sách recipes và tổng số lượng bản ghi totalItems
+     */
     static async getRecipes(page, limit, filters = {}, currentUserId = null) {
-        const limitNum = parseInt(limit, 10) || 12;
-        const pageNum = parseInt(page, 10) || 1;
-        const skip = (pageNum - 1) * limitNum;
+        const limitNum = parseInt(limit, 10) || 12; // Ép kiểu số lượng bản ghi
+        const pageNum = parseInt(page, 10) || 1;    // Ép kiểu số trang
+        const skip = (pageNum - 1) * limitNum;      // Tính số bản ghi cần bỏ qua cho OFFSET
 
+        // 1. Sử dụng bộ công cụ để phân rã bộ lọc thành cấu trúc SQL động chuẩn SOLID
         const queryParts = buildRecipeQuery(filters);
         const filterParams = queryParts.params || [];
 
-        // 1. SELECT: BỎ "comment_data" đi. Giữ lại ingredient_names để hiện preview
+        // Tính toán chính xác số lượng tag đang thực hiện lọc
+        let tagCount = 0;
+        if (filters.tags) {
+            if (Array.isArray(filters.tags)) {
+                tagCount = filters.tags.length;
+            } else if (typeof filters.tags === 'string' && filters.tags.trim() !== '') {
+                tagCount = filters.tags.split(',').filter(Boolean).length;
+            }
+        }
+
+        // 2. Thiết lập chuỗi SELECT mảnh: Gộp dữ liệu tags thành chuỗi định dạng id:::name|||id:::name
         const selectFragment = `
             SELECT 
                 R.*, 
@@ -667,56 +691,97 @@ class Recipe{
                 U.full_name AS author_name,
                 U.avatar AS author_avatar,
                 GROUP_CONCAT(DISTINCT I.name SEPARATOR ',') as ingredient_names,
-                EXISTS(
-                        SELECT 1 FROM Likes L 
-                        WHERE L.post_id = R.recipe_id AND L.post_type = 'recipe' AND L.user_id = ?
-                    ) as is_liked,
+                
+                -- Thực hiện gộp cặp dữ liệu ID và Tên của Tag để trả về phía sau
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(T_out.tag_id, ':::', T_out.name) 
+                    SEPARATOR '|||'
+                ) as raw_tags,
 
-                    -- Kiểm tra đã Save chưa (Trả về 1 hoặc 0)
                 EXISTS(
-                        SELECT 1 FROM Saved_Posts S 
-                        WHERE S.post_id = R.recipe_id AND S.post_type = 'recipe' AND S.user_id = ?
+                    SELECT 1 FROM Likes L 
+                    WHERE L.post_id = R.recipe_id AND L.post_type = 'recipe' AND L.user_id = ?
+                ) as is_liked,
+
+                EXISTS(
+                    SELECT 1 FROM Saved_Posts S 
+                    WHERE S.post_id = R.recipe_id AND S.post_type = 'recipe' AND S.user_id = ?
                 ) as is_saved
             FROM Recipes AS R
             LEFT JOIN Users AS U ON R.user_id = U.user_id 
         `;
 
-        // 2. JOIN: BỎ "LEFT JOIN Comments" và "LEFT JOIN Users Commenter"
+        // 3. Thiết lập chuỗi JOIN mảnh: Gắn thêm liên kết bảng tag độc lập để hiển thị dữ liệu
         const dataFetchJoins = `
             LEFT JOIN Recipe_Ingredients RI_Data ON R.recipe_id = RI_Data.recipe_id
             LEFT JOIN Ingredients I ON RI_Data.ingredient_id = I.ingredient_id
+            
+            -- Thực hiện liên kết lấy dữ liệu tags độc lập hoàn toàn với việc lọc
+            LEFT JOIN tag_post TP_out ON R.recipe_id = TP_out.post_id AND TP_out.post_type = 'recipe'
+            LEFT JOIN Tags T_out ON TP_out.tag_id = T_out.tag_id
         `;
 
+        // Tổ hợp toàn bộ các mệnh đề JOIN và WHERE từ bộ công cụ chuyển qua
         const allJoins = queryParts.joinClauses.join(' ') + ' ' + dataFetchJoins;
         const whereString = ' WHERE ' + queryParts.whereClauses.join(' AND ');
+        const groupByString = ' GROUP BY R.recipe_id, U.user_id, U.full_name, U.avatar ';
         
-        // 3. GROUP BY: Bỏ U.full_name, U.avatar nếu server không bắt lỗi strict, 
-        // nhưng cứ để cho an toàn. Bỏ các trường comment.
-        const groupByString = ' GROUP BY R.recipe_id, U.full_name, U.avatar ';
+        // Mệnh đề HAVING đảm bảo món ăn chứa ĐỦ tập hợp các thẻ tag yêu cầu
+        let havingString = '';
+        if (tagCount > 0) {
+            havingString = ' HAVING COUNT(DISTINCT TP.tag_id) = ? ';
+        }
+
         const orderLimitOffset = ' ORDER BY R.created_at DESC LIMIT ? OFFSET ?';
 
         try {
-            // --- COUNT ---
-            const countFragment = 'SELECT COUNT(DISTINCT R.recipe_id) AS total FROM Recipes AS R ';
-            const [countResult] = await pool.query(
-                countFragment + queryParts.joinClauses.join(' ') + whereString,
-                filterParams
-            );
+            // --- TIẾN HÀNH QUERIES COUNT (ĐẾM TỔNG PHÂN TRANG) ---
+            let countQuery = '';
+            let countParams = [...filterParams];
+
+            if (tagCount > 0) {
+                // Sử dụng Subquery kết hợp HAVING COUNT khi hệ thống đang lọc theo thẻ tag
+                countQuery = `
+                    SELECT COUNT(*) AS total FROM (
+                        SELECT 1 FROM Recipes AS R
+                        ${queryParts.joinClauses.join(' ')}
+                        ${whereString}
+                        GROUP BY R.recipe_id
+                        HAVING COUNT(DISTINCT TP.tag_id) = ?
+                    ) AS temp_count
+                `;
+                countParams.push(tagCount);
+            } else {
+                const countFragment = 'SELECT COUNT(DISTINCT R.recipe_id) AS total FROM Recipes AS R ';
+                countQuery = countFragment + queryParts.joinClauses.join(' ') + whereString;
+            }
+
+            const [countResult] = await pool.query(countQuery, countParams);
             const totalItems = Number(countResult[0]?.total || 0);
 
-            // --- DATA ---
-            const finalQuery = selectFragment + allJoins + whereString + groupByString + orderLimitOffset;
-            const finalParams = [currentUserId, currentUserId, ...filterParams, limitNum, skip];
+            // --- TIẾN HÀNH QUERIES FETCH DATA (LẤY DỮ LIỆU THỰC TẾ) ---
+            const finalQuery = selectFragment + allJoins + whereString + groupByString + havingString + orderLimitOffset;
+            
+            // Sắp xếp thứ tự truyền tham số chính xác theo các dấu chấm hỏi "?" trong chuỗi SQL
+            const finalParams = [currentUserId, currentUserId, ...filterParams];
+            if (tagCount > 0) {
+                finalParams.push(tagCount);
+            }
+            finalParams.push(limitNum, skip);
             
             const [result] = await pool.query(finalQuery, finalParams);
-            // console.log("Debug getRecipes - Raw Result:", result);
-            const formattedResult = result.map(row => ({
-                    ...row,
+            
+            // 4. Xử lý map dữ liệu kết quả: Chuyển chuỗi thô từ DB thành mảng Object thông qua file helper mới
+            const formattedResult = result.map(row => {
+                const { raw_tags, ...rest } = row;
+                return {
+                    ...rest,
                     is_liked: !!row.is_liked,
-                    is_saved: !!row.is_saved
-                }));
+                    is_saved: !!row.is_saved,
+                    tags: parseTagsData(raw_tags) // Gọi hàm tiện ích dùng chung để bóc tách thẻ tags
+                };
+            });
 
-            // console.log("Debug getRecipes - Formatted Result:", formattedResult);
             return {
                 recipes: formattedResult,
                 totalItems: totalItems
@@ -726,6 +791,7 @@ class Recipe{
             throw error;
         }
     }
+
     static async getRecentlyRecipes(category, tag, limit = 10, currentUserId = null) {
         try {
             const sql = `
@@ -741,20 +807,25 @@ class Recipe{
                 GROUP_CONCAT(
                     DISTINCT CONCAT(Commenter.full_name, ':::', C.content) 
                     SEPARATOR '|||'
-                ) as comment_data
+                ) as comment_data,
+                
+                -- Nối tag_id và name lại với nhau
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(T.tag_id, ':::', T.name) 
+                    SEPARATOR '|||'
+                ) as raw_tags
 
             FROM Recipes R
             JOIN Users U ON R.user_id = U.user_id
             
-            -- Join Ingredients (Giữ nguyên)
             LEFT JOIN recipe_ingredients RI ON R.recipe_id = RI.recipe_id
             LEFT JOIN Ingredients I ON RI.ingredient_id = I.ingredient_id
             
-            -- Join Comments (MỚI)
-            -- Lưu ý điều kiện post_type = 'recipe'
             LEFT JOIN Comments C ON R.recipe_id = C.post_id AND C.post_type = 'recipe'
-            -- Join User lần 2 (đặt tên là Commenter) để lấy tên người bình luận
             LEFT JOIN Users Commenter ON C.user_id = Commenter.user_id
+            
+            LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
+            LEFT JOIN Tags T ON TP.tag_id = T.tag_id
 
             WHERE R.status = 'public'
             GROUP BY R.recipe_id
@@ -766,11 +837,16 @@ class Recipe{
             
             const [result] = await pool.execute(sql, [currentUserId, currentUserId, ...sqlParams]);
 
-            return result.map(row => ({
-                ...row,
-                is_liked: !!row.is_liked,
-                is_saved: !!row.is_saved
-            }));
+            // Dùng hàm parseTagsData để biến raw_tags thành mảng objects
+            return result.map(row => {
+                const { raw_tags, ...rest } = row;
+                return {
+                    ...rest,
+                    is_liked: !!row.is_liked,
+                    is_saved: !!row.is_saved,
+                    tags: parseTagsData(raw_tags)
+                };
+            });
 
         } catch (err){
             console.log(err.message);
@@ -821,27 +897,41 @@ class Recipe{
                 GROUP_CONCAT(
                     DISTINCT CONCAT(Commenter.full_name, ':::', C.content) 
                     SEPARATOR '|||'
-                ) as comment_data
+                ) as comment_data,
+                
+                -- Nối tag_id và name lại với nhau
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(T.tag_id, ':::', T.name) 
+                    SEPARATOR '|||'
+                ) as raw_tags
 
             FROM Recipes R
             JOIN Users U ON R.user_id = U.user_id
             
-            -- Join Ingredients (Giữ nguyên)
             LEFT JOIN recipe_ingredients RI ON R.recipe_id = RI.recipe_id
             LEFT JOIN Ingredients I ON RI.ingredient_id = I.ingredient_id
             
-            -- Join Comments (MỚI)
-            -- Lưu ý điều kiện post_type = 'recipe'
             LEFT JOIN Comments C ON R.recipe_id = C.post_id AND C.post_type = 'recipe'
-            -- Join User lần 2 (đặt tên là Commenter) để lấy tên người bình luận
             LEFT JOIN Users Commenter ON C.user_id = Commenter.user_id
+            
+            LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
+            LEFT JOIN Tags T ON TP.tag_id = T.tag_id
 
-            WHERE R.status = 'public' and R.user_id = ?
+            WHERE R.user_id = ?
             GROUP BY R.recipe_id
             ORDER BY R.created_at DESC 
             `
             const [result] = await pool.execute(sql, [userId, userId, userId]);
-            return result;
+            
+            return result.map(row => {
+                const { raw_tags, ...rest } = row;
+                return {
+                    ...rest,
+                    is_liked: !!row.is_liked,
+                    is_saved: !!row.is_saved,
+                    tags: parseTagsData(raw_tags)
+                };
+            });
         } catch (error) {
             console.error('Lỗi Model (getOwnerRecipe):', error);
             throw new Error(`Lấy recipe thất bại: ${error.message}`);
@@ -851,11 +941,28 @@ class Recipe{
     static async getUserRecipe(userId){
          try {
             const sql = `
-                SELECT * FROM recipes
-                WHERE user_id = ? AND status = "public"
+                SELECT 
+                    R.*,
+                    GROUP_CONCAT(
+                        DISTINCT CONCAT(T.tag_id, ':::', T.name) 
+                        SEPARATOR '|||'
+                    ) as raw_tags
+                FROM Recipes R
+                LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
+                LEFT JOIN Tags T ON TP.tag_id = T.tag_id
+                WHERE R.user_id = ? AND R.status = "public"
+                GROUP BY R.recipe_id
+                ORDER BY R.created_at DESC
             `
             const [result] = await pool.execute(sql, [userId]);
-            return result;
+            
+            return result.map(row => {
+                const { raw_tags, ...rest } = row;
+                return {
+                    ...rest,
+                    tags: parseTagsData(raw_tags)
+                };
+            });
         } catch (error) {
             console.error('Lỗi Model (getUserRecipe):', error);
             throw new Error(`Lấy recipe thất bại: ${error.message}`);
@@ -955,14 +1062,12 @@ class Recipe{
     static async getSavedRecipes(userId, sortKey, sortOrder, limit = 10, page = 1) {
         const offset = (page - 1) * limit;
         
-        // Mapping sortKey sang tên cột trong DB
         const sortMapping = {
             'time': 'R.created_at',
             'like': 'R.like_count',
             'rating': 'R.rating_avg_score'
         };
 
-        // Mặc định sắp xếp theo thời gian tạo giảm dần nếu không chọn gì
         let orderByClause = 'ORDER BY R.created_at DESC';
         
         if (sortKey && sortMapping[sortKey] && sortOrder) {
@@ -977,24 +1082,38 @@ class Recipe{
                     U.full_name AS author_name, 
                     U.avatar AS author_avatar,
                     (EXISTS(SELECT 1 FROM Likes WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_liked,
-                (EXISTS(SELECT 1 FROM Saved_Posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved
+                    (EXISTS(SELECT 1 FROM Saved_Posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved,
+                    
+                    GROUP_CONCAT(
+                        DISTINCT CONCAT(T.tag_id, ':::', T.name) 
+                        SEPARATOR '|||'
+                    ) as raw_tags
+                    
                 FROM Saved_Posts SP
                 JOIN Recipes R ON SP.post_id = R.recipe_id
                 JOIN Users U ON R.user_id = U.user_id
+                
+                LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
+                LEFT JOIN Tags T ON TP.tag_id = T.tag_id
+                
                 WHERE SP.user_id = ? AND SP.post_type = 'recipe'
+                GROUP BY R.recipe_id
                 ${orderByClause}
                 LIMIT ? OFFSET ?
             `;
 
             const [recipes] = await pool.execute(sql, [userId, userId, userId, limit.toString(), offset.toString()]);
 
-            const formattedRecipes = recipes.map(row => ({
-                ...row,
-                is_liked: Boolean(row.is_liked), // Hoặc !!row.is_liked
-                is_saved: Boolean(row.is_saved)
-            }));
+            const formattedRecipes = recipes.map(row => {
+                const { raw_tags, ...rest } = row;
+                return {
+                    ...rest,
+                    is_liked: Boolean(row.is_liked),
+                    is_saved: Boolean(row.is_saved),
+                    tags: parseTagsData(raw_tags)
+                };
+            });
 
-            // Đếm tổng số lượng để phân trang
             const [countResult] = await pool.execute(
                 `SELECT COUNT(*) as total 
                  FROM Saved_Posts SP 
@@ -1012,6 +1131,8 @@ class Recipe{
             throw error;
         }
     }
+
+    //ADMIN SECTION
 
     static async getRecipeGrowthStats(days = 30) {
         const query = `

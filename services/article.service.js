@@ -154,17 +154,33 @@ class ArticleService {
     }
 
     // ... (Toàn bộ các hàm getPublicArticles, getFeaturedArticles, getOwnerArticles, getArticleById, getSavedArticles bên dưới giữ nguyên 100% của bạn)
+/**
+     * Lấy danh sách bài viết công khai có phân trang, tìm kiếm và lọc theo thẻ tags.
+     * Đã sửa lỗi không nhận diện được key 'tags[]' do Axios tự động ép định dạng mảng.
+     */
     async getPublicArticles(query, userId) {
         const page = parseInt(query.page) || 1;
         const limit = parseInt(query.limit) || 5;
         const offset = (page - 1) * limit;
-        const keyword = query.q || ""; 
+        
+        // SỬA THÊM: Chấp nhận cả query.search (từ frontend của bà gửi lên) lẫn query.q
+        const keyword = query.search || query.q || ""; 
         const sort = query.sort || "newest"; 
 
+        // SỬA CHÍNH TẠI ĐÂY: Lấy dữ liệu từ 'tags' hoặc 'tags[]' để tương thích toàn diện
         let tagIds = [];
-        if (query.tags) {
-            tagIds = Array.isArray(query.tags) ? query.tags : query.tags.split(',').filter(id => id.trim() !== "");
+        const rawTags = query.tags || query['tags[]']; 
+        
+        if (rawTags) {
+            if (Array.isArray(rawTags)) {
+                tagIds = rawTags;
+            } else if (typeof rawTags === 'string') {
+                // Phòng trường hợp frontend gửi chuỗi dạng "ID1,ID2"
+                tagIds = rawTags.split(',').filter(id => id.trim() !== "");
+            }
         }
+        
+        // console.log("Service đã nhận tagIds chuẩn:", query, tagIds);
 
         const [articles, totalItems] = await Promise.all([
             ArticleModel.getPublicArticles({ limit, offset, keyword, tagIds, sort }),

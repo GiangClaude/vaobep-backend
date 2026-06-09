@@ -27,7 +27,7 @@ class User {
     static async findByEmail(email) {
         try {
             const [rows] = await pool.execute(
-                    'SELECT user_id, full_name, email, password, account_status FROM users u WHERE email = ?',
+                    'SELECT user_id, full_name, email, password, account_status, role FROM users u WHERE email = ?',
                     [email]
                 );
                 return rows[0];
@@ -322,7 +322,7 @@ class User {
                     (SELECT COUNT(*) FROM Follows f2 WHERE f2.follower_id = ? AND f2.following_id = u.user_id) > 0 as is_following
                 FROM Users u
                 LEFT JOIN Follows f ON u.user_id = f.following_id
-                WHERE (u.full_name LIKE ? OR u.email LIKE ?) 
+                WHERE (u.full_name LIKE ?) 
                   AND u.account_status = 'active'
                   AND u.role != 'admin'
                 GROUP BY u.user_id
@@ -331,7 +331,7 @@ class User {
             `;
 
             // Params: [currentUserId, keyword, keyword, limit, offset]
-            const [users] = await pool.query(sql, [currentUserId, kw, kw, parseInt(limit), parseInt(offset)]);
+            const [users] = await pool.query(sql, [currentUserId, kw, parseInt(limit), parseInt(offset)]);
 
             // Map lại key cho chuẩn boolean
             const formattedUsers = users.map(user => ({
@@ -391,6 +391,7 @@ class User {
             // Push userId vào cuối mảng values (cho dấu ? ở WHERE)
             values.push(userId);
 
+            
             const [result] = await pool.execute(sql, values);
             return result.affectedRows > 0;
         } catch (error) {

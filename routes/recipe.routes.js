@@ -50,6 +50,6 @@ router.patch('/status/:recipeId', protect, recipeController.changeRecipeStatus);
 
 router.delete('/delete/:recipeId',protect, recipeController.deleteRecipe);
 
-router.get('/search/simple', protect, recipeController.searchSimpleRecipes);
+router.get('/search/simple', recipeController.searchSimpleRecipes);
 
 module.exports = router;

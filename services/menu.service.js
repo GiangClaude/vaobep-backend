@@ -77,7 +77,18 @@ class MenuService {
         existingMenu.is_public = false;
         existingMenu.cloned_from_id = menuId;
 
-        return await MenuModel.create(userId, existingMenu);
+        const connection = await db.pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            const clonedMenu = await MenuModel.create(connection, userId, existingMenu);
+            await connection.commit();
+            return clonedMenu;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 
     async getPublicMenusByUser(userId) {

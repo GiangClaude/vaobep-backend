@@ -83,7 +83,7 @@ const DictionaryDish = {
 
     getMapAllDishes: async () => {
         const query = `
-            SELECT dish_id, original_name, english_name, description, image_url, point, country, latitude, longitude 
+            SELECT dish_id, original_name, english_name, description, image_url, point, like_count, country, latitude, longitude 
             FROM Dictionary_Dishes 
             WHERE latitude IS NOT NULL
         `;

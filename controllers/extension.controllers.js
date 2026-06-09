@@ -48,6 +48,7 @@ const identifyImage = asyncHandler(async (req, res) => {
   // Bước 1: Gọi AI nhận diện tên món
   const dishName = await extensionAiService.identifyDishFromImage(base64Data);
   
+  console.log("Extension: Dish Name: ", dishName);
   // Bước 2: Dùng tên món đó truy vấn ngay Database để tìm công thức liên quan
   const sql = `
     SELECT recipe_id, title, cover_image, cook_time, total_calo 
@@ -57,7 +58,7 @@ const identifyImage = asyncHandler(async (req, res) => {
   `;
   const searchTerm = `%${dishName.replace(/["']/g, '').trim()}%`; 
   const [recipes] = await db.pool.execute(sql, [searchTerm]);
-
+  console.log("Extension log: ", recipes);
   sendResponse(res, 200, true, 'Success', { dishName, recipes }, null);
 });
 

@@ -163,6 +163,8 @@ const ArticleModel = {
             )`;
             params.push(...tagIds, tagIds.length); // Thêm các tag_id và số lượng tag cần khớp
         }
+
+        
         // 3. Xử lý Sắp xếp (Sort)
         switch (sort) {
             case 'featured':
@@ -184,10 +186,16 @@ const ArticleModel = {
         query += ` LIMIT ? OFFSET ?`;
         params.push(limit.toString(), offset.toString());
 
+        // console.log("Query: ", query, params);
+
         const [rows] = await pool.execute(query, params);
         return rows;
     },
 
+/**
+     * Đếm tổng số bài viết công khai có áp dụng bộ lọc từ khóa và danh sách thẻ tags.
+     * Đã đồng bộ logic HAVING COUNT để đếm chính xác số lượng bài viết chứa ĐỦ tất cả các tag yêu cầu.
+     */
     countPublicArticles: async ({ keyword, tagIds }) => {
         let params = [];
         let query = `
@@ -209,12 +217,18 @@ const ArticleModel = {
             params.push(searchVal, searchVal, searchVal, searchVal);
         }
 
+        // SỬA TẠI ĐÂY: Thêm GROUP BY và HAVING COUNT để ép câu lệnh đếm tuân thủ theo phép AND giống hàm lấy dữ liệu
         if (tagIds && tagIds.length > 0) {
             const placeholders = tagIds.map(() => '?').join(',');
             query += ` AND a.article_id IN (
-                SELECT post_id FROM tag_post WHERE post_type = 'article' AND tag_id IN (${placeholders})
+                SELECT post_id 
+                FROM tag_post 
+                WHERE post_type = 'article' AND tag_id IN (${placeholders})
+                GROUP BY post_id
+                HAVING COUNT(DISTINCT tag_id) = ?
             )`;
-            params.push(...tagIds);
+            // Đẩy thêm số lượng tag vào mảng tham số để gán cho dấu hỏi "?" của HAVING COUNT
+            params.push(...tagIds, tagIds.length); 
         }
 
         const [rows] = await pool.execute(query, params);
@@ -280,9 +294,11 @@ const ArticleModel = {
     // 5. Lấy bài viết của chính chuyên gia đó
     getOwnerArticles: async (userId) => {
         const query = `
-            SELECT * FROM Article_Posts 
-            WHERE user_id = ?
-            ORDER BY created_at DESC
+            SELECT AP.*, U.full_name as author_name, U.avatar as author_avatar
+            FROM Article_Posts AP
+            JOIN Users U ON AP.user_id = U.user_id
+            WHERE AP.user_id = ?
+            ORDER BY AP.created_at DESC
         `;
         const [rows] = await pool.execute(query, [userId]);
         return rows;

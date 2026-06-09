@@ -182,9 +182,9 @@ class RecipeService {
     }
 
     async searchSimpleRecipes(keyword, userId) {
-        const user = await UserModel.findById(userId);
-        if (!user) throw new AppError('Không tìm thấy người dùng', 404);
-        if (user.role === 'user') throw new AppError('Bạn không có quyền truy cập tính năng này', 403);
+        // const user = await UserModel.findById(userId);
+        // if (!user) throw new AppError('Không tìm thấy người dùng', 404);
+        // if (user.role === 'user') throw new AppError('Bạn không có quyền truy cập tính năng này', 403);
 
         if (!keyword) return [];
         return await RecipeModel.searchSimpleRecipes(keyword);

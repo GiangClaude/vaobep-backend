@@ -112,7 +112,6 @@ class RecipeLinkModel {
  * Lấy danh sách Recipe đã gắn vào một Post
  */
 static async getRecipesByPost(userId = null, targetId, targetType) {
-    console.log("Fetching linked recipes for post:", { targetId, targetType, userId });
     const sql = `
         SELECT r.recipe_id, r.title, r.cover_image, r.status, r.rating_avg_score,
             u.user_id as author_id, u.full_name as author_name,
@@ -130,7 +129,6 @@ static async getRecipesByPost(userId = null, targetId, targetType) {
     `;
     // Truyền userId vào tham số đầu tiên
     const [rows] = await pool.execute(sql, [userId, targetId, targetType]);
-    console.log("Linked recipes fetched:", rows);
     return rows;
 }
 

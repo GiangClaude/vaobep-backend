@@ -84,7 +84,8 @@ const getSavedRecipes = asyncHandler(async (req, res) => {
 });
 
 const searchSimpleRecipes = asyncHandler(async (req, res) => {
-    const recipes = await RecipeService.searchSimpleRecipes(req.query.keyword, req.user.user_id);
+    const userId = getUserIdFromToken(req);
+    const recipes = await RecipeService.searchSimpleRecipes(req.query.keyword, userId);
     sendResponse(res, 200, true, 'Tìm kiếm công thức thành công', recipes);
 });
 

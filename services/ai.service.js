@@ -75,7 +75,14 @@ async function generateResponse({ userId, message, sessionId, rules, currentCont
   } catch (err) {
     console.error('LLM call failed:', err.message);
     chatHistory.pop(); // Xóa câu lỗi
-    return { text: `Lỗi kết nối với Trợ lý AI: ${err.message}`, sql: null, executeSql: false };
+   // Kiểm tra nếu lỗi là do hết Quota (429) của Gemini
+    if (err.message.includes('429') || err.message.includes('Quota')) {
+        // Ném ra AppError với message thân thiện cho user và HTTP status 429
+        throw new AppError('Hệ thống AI đang tạm thời quá tải. Bà vui lòng thử lại sau ít phút nha!', 429);
+    }
+    
+    // Ném ra lỗi chung cho các trường hợp rớt mạng, lỗi key,...
+    throw new AppError('Đã mất kết nối với Trợ lý AI. Đang tiến hành khắc phục!', 500);
   }
 
   // Thêm câu trả lời của AI và lưu lại
@@ -115,24 +122,74 @@ async function analyzeMenuWithAI(menuData) {
     });
 }
 
+// backend/services/ai.service.js
+
+/**
+ * Tự động tạo thực đơn bằng công nghệ RAG (Retrieval-Augmented Generation).
+ * Hàm này lấy yêu cầu của user, tìm món ăn phù hợp trong VectorDB, 
+ * và ép AI trả về đúng cấu trúc JSON cây menu chuẩn (Days -> Meals -> Recipes).
+ */
 async function generateMenuWithRAG(prompt) {
+    // 1. Lấy embedding từ câu prompt của user
     const emb = await getEmbedding(prompt);
+    
+    // 2. Tìm kiếm các món ăn phù hợp trong Vector Database
     const matches = await vs.retrieve(emb, 20);
     if (!matches || matches.length === 0) throw new Error("Không tìm thấy món ăn phù hợp.");
 
+    // 3. Tạo context chứa danh sách món ăn để AI lựa chọn
     const recipeContext = matches.map(m => `- ID: ${m.id} | Tên: ${m.metadata?.title}`).join('\n');
-    const systemInstruction = `Bạn là hệ thống lên thực đơn tự động...\nĐịnh dạng JSON:[{"day_id":"uuid","title":"Ngày 1",...}]`;
-    const userMessage = `Danh sách món:\n${recipeContext}\n\nYêu cầu: ${prompt}\nChỉ trả JSON.`;
+    
+    // 4. Thiết lập System Instruction: Ép cấu trúc JSON chuẩn xác
+    const systemInstruction = `Bạn là hệ thống lên thực đơn tự động.
+Nhiệm vụ của bạn là tạo ra một thực đơn dựa TRÊN DANH SÁCH MÓN ĂN được cung cấp.
+QUY TẮC QUAN TRỌNG:
+- TUYỆT ĐỐI KHÔNG tự tạo day_id hay meal_id.
+- meal_type chỉ được phép dùng 1 trong 4 giá trị: 'breakfast', 'lunch', 'dinner', 'snack'.
+- recipe_id BẮT BUỘC phải lấy từ ID tương ứng trong "Danh sách món". Không được tự bịa ID.
+- servings_multiplier là kiểu số thực (vd: 1.0, 1.5).
+
+Bạn PHẢI trả về ĐÚNG cấu trúc JSON mảng các ngày (Days) như mẫu sau:
+[
+  {
+    "title": "Ngày 1",
+    "meals": [
+      {
+        "meal_type": "breakfast",
+        "title": "Bữa sáng",
+        "note": "Ghi chú nếu cần thiết",
+        "recipes": [
+          {
+            "recipe_id": "ID-lấy-từ-danh-sách-món",
+            "title": "tiêu đề của recipe",
+            "cover_image": "recipe.cover_image",
+            "total_calo": "recipe.total_calo",
+            "servings_multiplier": 1.0
+          }
+        ]
+      }
+    ]
+  }
+]
+Chỉ trả về mảng JSON thuần túy, không kèm theo bất kỳ văn bản giải thích nào khác.`;
+
+    // 5. Khởi tạo thông điệp cho user
+    const userMessage = `Danh sách món:\n${recipeContext}\n\nYêu cầu: ${prompt}`;
 
     const contents = [{ role: "user", parts: [{ text: userMessage }] }];
+    
+    // 6. Gọi AI với temperature thấp (0.2) để ưu tiên tính chính xác, giảm sự sáng tạo bay bổng
     const aiText = await llmProvider.callGemini(contents, systemInstruction, { temperature: 0.2 });
 
+    // 7. Làm sạch chuỗi trả về để loại bỏ markdown block (```json ... ```)
     const cleanJson = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    // 8. Chuyển string thành JSON Object
     return JSON.parse(cleanJson);
 }
 
 async function generateSummary(contextText) {
-    const systemInstruction = `Bạn là chuyên gia dinh dưỡng. Tóm tắt nội dung ngắn gọn bằng Markdown.`;
+    const systemInstruction = `Bạn là chuyên gia dinh dưỡng. Tóm tắt nội dung ngắn gọn bằng Markdown. Đọc kỹ và dựa vào thêm các thông tin bên ngoài, đưa ra các lưu ý cần chú ý khi áp dụng công thức.`;
     const contents = [{ role: 'user', parts: [{ text: `Văn bản:\n${contextText}` }] }];
     
     return await llmProvider.callGemini(contents, systemInstruction, { 

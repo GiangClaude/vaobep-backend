@@ -44,8 +44,14 @@ const voteRecipeForDish = asyncHandler(async (req, res) => {
     const userId = req.user.user_id;
 
     const action = await DictionaryDishService.voteRecipeForDish(dishId, recipeId, userId);
-
-    sendResponse(res, 200, true, 'Bình chọn thành công!', action);
+    console.log("DictionaryDish: ", action);
+    let msg;
+    if (action === 'unvoted') {
+        msg = "Xóa bình chọn thành công";
+    } else {
+        msg = "Bình chọn thành công";
+    }
+    sendResponse(res, 200, true, msg, action);
 });
 
 module.exports = { getAllDishes, getDishDetail, getMapSummary, getMapAllDishes, voteRecipeForDish };
