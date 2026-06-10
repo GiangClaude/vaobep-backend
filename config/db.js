@@ -9,14 +9,24 @@ const pool = mysql.createPool({
     port: process.env.DB_PORT,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    ssl: {
+    rejectUnauthorized: false
+    }
 });
 
 const chatbotPool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.CHATBOT_DB_USER, // <-- Lấy đúng user bot
     password: process.env.CHATBOT_DB_PASSWORD, // <-- Lấy đúng pass bot
-    database: process.env.CHATBOT_DB_NAME
+    database: process.env.CHATBOT_DB_NAME,
+    port: process.env.DB_PORT, // QUAN TRỌNG: Phải có port của Aiven
+    waitForConnections: true,
+    connectionLimit: 5, // Có thể giới hạn ít hơn pool chính một chút để tiết kiệm tài nguyên
+    queueLimit: 0,
+    ssl: { // QUAN TRỌNG: Chatbot cũng bị ép dùng SSL trên Cloud
+        rejectUnauthorized: false
+    }
 });
 
 // Hàm kiểm tra kết nối

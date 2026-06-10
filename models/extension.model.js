@@ -7,9 +7,9 @@ class ExtensionModel {
             FROM recipes 
             WHERE status = 'public' 
             ORDER BY RAND() 
-            LIMIT ?
+            LIMIT LIMIT ${parseInt(limit) || 3}
         `;
-        const [rows] = await db.pool.execute(sql, [limit.toString()]);
+        const [rows] = await db.pool.execute(sql);
         return rows;
     }
 
@@ -19,9 +19,9 @@ class ExtensionModel {
             FROM recipes 
             WHERE status = 'public' AND title LIKE ? 
             ORDER BY RAND()
-            LIMIT ?
+            LIMIT ${parseInt(limit) || 5}
         `;
-        const [rows] = await db.pool.execute(sql, [searchTerm, limit.toString()]);
+        const [rows] = await db.pool.execute(sql, [searchTerm]);
         return rows;
     }
 }

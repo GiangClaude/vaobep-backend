@@ -301,7 +301,7 @@ class Recipe{
 
         // --- 1. INSERT vào bảng Recipes ---
         const sqlRecipe = `
-            INSERT INTO Recipes 
+            INSERT INTO recipes 
                 (recipe_id, user_id, title, description, instructions, cover_image, status, servings, cook_time, total_calo)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
@@ -317,7 +317,7 @@ class Recipe{
                 // A. Xử lý tên Nguyên liệu
                 let ingredientId;
                 const [foundIng] = await executor.execute(
-                    `SELECT ingredient_id FROM Ingredients WHERE name = ?`, [ing.name]
+                    `SELECT ingredient_id FROM ingredients WHERE name = ?`, [ing.name]
                 );
 
                 if (foundIng.length > 0) {
@@ -325,7 +325,7 @@ class Recipe{
                 } else {
                     const newIngId = uuidv4()
                     await executor.execute(
-                        `INSERT INTO Ingredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
+                        `INSERT INTO tngredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
                         [newIngId, ing.name]
                     );
                     ingredientId = newIngId;
@@ -334,7 +334,7 @@ class Recipe{
                 // B. Xử lý Đơn vị
                 let unitId;
                 const [foundUnit] = await executor.execute(
-                    `SELECT unit_id FROM Units WHERE name = ?`, [ing.unit]
+                    `SELECT unit_id FROM units WHERE name = ?`, [ing.unit]
                 );
 
                 if (foundUnit.length > 0) {
@@ -342,7 +342,7 @@ class Recipe{
                 } else {
                     const newUnitId = uuidv4();
                     await executor.execute(
-                        `INSERT INTO Units (unit_id, name) VALUES (?, ?)`,
+                        `INSERT INTO units (unit_id, name) VALUES (?, ?)`,
                         [newUnitId, ing.unit]
                     );
                     unitId = newUnitId;
@@ -350,7 +350,7 @@ class Recipe{
 
                 // C. Insert vào bảng liên kết Recipe_Ingredients
                 await executor.execute(
-                    `INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id) VALUES (?, ?, ?, ?)`,
+                    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit_id) VALUES (?, ?, ?, ?)`,
                     [recipeId, ingredientId, ing.amount || ing.quantity, unitId] 
                 );
             }
@@ -366,7 +366,7 @@ class Recipe{
 
         // --- 3. INSERT bảng Recipe_Images ---
         if (resultImages && resultImages.length > 0) {
-            const imgSql = `INSERT INTO Recipe_Images (img_id, recipe_id, imgLink, description) VALUES (?, ?, ?, ?)`;
+            const imgSql = `INSERT INTO recipe_images (img_id, recipe_id, imgLink, description) VALUES (?, ?, ?, ?)`;
             for (const img of resultImages) {
                 const newImgId = uuidv4();
                 await executor.execute(imgSql, [newImgId, recipeId, img.url, img.description]);
@@ -394,7 +394,7 @@ class Recipe{
             const queryValues = recipeKeys.map(key => recipeData[key]);
             queryValues.push(recipeId);
 
-            const updateQuery = `UPDATE Recipes SET ${setClauses.join(', ')} WHERE recipe_id = ?`;
+            const updateQuery = `UPDATE Recipes sET ${setClauses.join(', ')} WHERE recipe_id = ?`;
             await executor.execute(updateQuery, queryValues);
         }
 
@@ -410,7 +410,7 @@ class Recipe{
                 let ingredientStatus = 'approved';
 
                 let [foundIng] = await executor.execute(
-                    `SELECT ingredient_id, status FROM Ingredients WHERE name = ?`, [ingredientName]
+                    `SELECT ingredient_id, status FROM ingredients WHERE name = ?`, [ingredientName]
                 );
 
                 if (foundIng.length > 0) {
@@ -419,7 +419,7 @@ class Recipe{
                 } else {
                     const newIngId = uuidv4();
                     await executor.execute(
-                        `INSERT INTO Ingredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
+                        `INSERT INTO ingredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
                         [newIngId, ingredientName]
                     );
                     ingredientId = newIngId;
@@ -431,14 +431,14 @@ class Recipe{
                 // B. Xử lý Units
                 let unitId;
                 const [foundUnit] = await executor.execute(
-                    `SELECT unit_id FROM Units WHERE name = ?`, [unitName]
+                    `SELECT unit_id FROM units WHERE name = ?`, [unitName]
                 );
 
                 if (foundUnit.length > 0) {
                     unitId = foundUnit[0].unit_id;
                 } else {
                     const newUnitId = uuidv4();
-                    await executor.execute(`INSERT INTO Units (unit_id, name) VALUES (?, ?)`, [newUnitId, unitName]);
+                    await executor.execute(`INSERT INTO units (unit_id, name) VALUES (?, ?)`, [newUnitId, unitName]);
                     unitId = newUnitId;
                 }
 
@@ -495,34 +495,34 @@ class Recipe{
                 [recipeId]
             );
             await connection.execute(
-                'DELETE FROM Menu_Recipes WHERE recipe_id = ?',
+                'DELETE FROM menu_recipes WHERE recipe_id = ?',
                 [recipeId]
             );
 
             await connection.execute(
-                'DELETE FROM Likes WHERE post_id = ? AND post_type = ?',
+                'DELETE FROM likes WHERE post_id = ? AND post_type = ?',
                 [recipeId, postType]
             );
 
             await connection.execute(
-                'DELETE FROM Comments WHERE post_id = ? AND post_type = ?',
+                'DELETE FROM comments WHERE post_id = ? AND post_type = ?',
                 [recipeId, postType]
             );
             await connection.execute(
-                'DELETE FROM Ratings WHERE post_id = ? AND post_type = ?',
+                'DELETE FROM ratings WHERE post_id = ? AND post_type = ?',
                 [recipeId, postType]
             );
             await connection.execute(
-                'DELETE FROM Reports WHERE post_id = ? AND post_type = ?',
+                'DELETE FROM reports WHERE post_id = ? AND post_type = ?',
                 [recipeId, postType]
             );
             await connection.execute(
-                'DELETE FROM Saved_Posts WHERE post_id = ? AND post_type = ?',
+                'DELETE FROM saved_posts WHERE post_id = ? AND post_type = ?',
                 [recipeId, postType]
             );
 
            const [deleteResult] = await connection.execute(
-                'DELETE FROM Recipes WHERE recipe_id = ?',
+                'DELETE FROM recipes WHERE recipe_id = ?',
                 [recipeId]
             ); 
 
@@ -565,8 +565,8 @@ class Recipe{
                     U.user_id AS author_id,
                     U.full_name AS author_name, 
                     U.avatar AS author_avatar
-                FROM Recipes R
-                JOIN Users U ON R.user_id = U.user_id
+                FROM recipes R
+                JOIN users U ON R.user_id = U.user_id
                 WHERE R.recipe_id = ? 
             `;
             
@@ -586,8 +586,8 @@ class Recipe{
                     U.name AS unit_name,
                     U.unit_id
                 FROM recipe_ingredients RI
-                JOIN Ingredients I ON RI.ingredient_id = I.ingredient_id
-                JOIN Units U ON RI.unit_id = U.unit_id
+                JOIN ingredients I ON RI.ingredient_id = I.ingredient_id
+                JOIN units U ON RI.unit_id = U.unit_id
                 WHERE RI.recipe_id = ?
             `;
             
@@ -597,7 +597,7 @@ class Recipe{
             // --- Query 3: Lấy thông tin Tags ---
             const tagSql = `
                 SELECT T.tag_id, T.name 
-                FROM Tags T
+                FROM tags T
                 JOIN tag_post TP ON T.tag_id = TP.tag_id
                 WHERE TP.post_id = ? AND TP.post_type = 'recipe'
             `;
@@ -631,13 +631,13 @@ class Recipe{
                     u.avatar AS author_avatar,
                     u.user_id,
                     GROUP_CONCAT(t.name SEPARATOR ', ') AS tags
-                FROM Recipes r
-                JOIN Users u ON r.user_id = u.user_id
+                FROM recipes r
+                JOIN users u ON r.user_id = u.user_id
                 LEFT JOIN tag_post tp ON r.recipe_id = tp.post_id AND tp.post_type = 'recipe'
-                LEFT JOIN Tags t ON tp.tag_id = t.tag_id
+                LEFT JOIN tags t ON tp.tag_id = t.tag_id
                 WHERE r.status = 'public' 
                 AND (r.title LIKE ? OR u.full_name LIKE ? OR t.name LIKE ?)
-                GROUP BY r.recipe_id, u.full_name
+                GROUP BY r.recipe_id, r.title, r.cover_image, u.full_name, u.avatar, u.user_id
                 LIMIT 20
             `;
 
@@ -699,26 +699,26 @@ class Recipe{
                 ) as raw_tags,
 
                 EXISTS(
-                    SELECT 1 FROM Likes L 
+                    SELECT 1 FROM likes L 
                     WHERE L.post_id = R.recipe_id AND L.post_type = 'recipe' AND L.user_id = ?
                 ) as is_liked,
 
                 EXISTS(
-                    SELECT 1 FROM Saved_Posts S 
+                    SELECT 1 FROM saved_posts S 
                     WHERE S.post_id = R.recipe_id AND S.post_type = 'recipe' AND S.user_id = ?
                 ) as is_saved
-            FROM Recipes AS R
+            FROM recipes AS R
             LEFT JOIN Users AS U ON R.user_id = U.user_id 
         `;
 
         // 3. Thiết lập chuỗi JOIN mảnh: Gắn thêm liên kết bảng tag độc lập để hiển thị dữ liệu
         const dataFetchJoins = `
-            LEFT JOIN Recipe_Ingredients RI_Data ON R.recipe_id = RI_Data.recipe_id
-            LEFT JOIN Ingredients I ON RI_Data.ingredient_id = I.ingredient_id
+            LEFT JOIN recipe_ingredients RI_Data ON R.recipe_id = RI_Data.recipe_id
+            LEFT JOIN ingredients I ON RI_Data.ingredient_id = I.ingredient_id
             
             -- Thực hiện liên kết lấy dữ liệu tags độc lập hoàn toàn với việc lọc
             LEFT JOIN tag_post TP_out ON R.recipe_id = TP_out.post_id AND TP_out.post_type = 'recipe'
-            LEFT JOIN Tags T_out ON TP_out.tag_id = T_out.tag_id
+            LEFT JOIN tags T_out ON TP_out.tag_id = T_out.tag_id
         `;
 
         // Tổ hợp toàn bộ các mệnh đề JOIN và WHERE từ bộ công cụ chuyển qua
@@ -732,7 +732,7 @@ class Recipe{
             havingString = ' HAVING COUNT(DISTINCT TP.tag_id) = ? ';
         }
 
-        const orderLimitOffset = ' ORDER BY R.created_at DESC LIMIT ? OFFSET ?';
+        const orderLimitOffset = ` ORDER BY R.created_at DESC LIMIT ${limitNum} OFFSET ${skip}`;
 
         try {
             // --- TIẾN HÀNH QUERIES COUNT (ĐẾM TỔNG PHÂN TRANG) ---
@@ -743,7 +743,7 @@ class Recipe{
                 // Sử dụng Subquery kết hợp HAVING COUNT khi hệ thống đang lọc theo thẻ tag
                 countQuery = `
                     SELECT COUNT(*) AS total FROM (
-                        SELECT 1 FROM Recipes AS R
+                        SELECT 1 FROM recipes AS R
                         ${queryParts.joinClauses.join(' ')}
                         ${whereString}
                         GROUP BY R.recipe_id
@@ -752,7 +752,7 @@ class Recipe{
                 `;
                 countParams.push(tagCount);
             } else {
-                const countFragment = 'SELECT COUNT(DISTINCT R.recipe_id) AS total FROM Recipes AS R ';
+                const countFragment = 'SELECT COUNT(DISTINCT R.recipe_id) AS total FROM recipes AS R ';
                 countQuery = countFragment + queryParts.joinClauses.join(' ') + whereString;
             }
 
@@ -767,7 +767,6 @@ class Recipe{
             if (tagCount > 0) {
                 finalParams.push(tagCount);
             }
-            finalParams.push(limitNum, skip);
             
             const [result] = await pool.query(finalQuery, finalParams);
             
@@ -794,6 +793,8 @@ class Recipe{
 
     static async getRecentlyRecipes(category, tag, limit = 10, currentUserId = null) {
         try {
+            const parsedLimit = parseInt(limit, 10) || 10; 
+
             const sql = `
             SELECT 
                 R.*, 
@@ -801,8 +802,8 @@ class Recipe{
                 U.avatar as author_avatar,
                 GROUP_CONCAT(DISTINCT I.name SEPARATOR ',') as ingredient_names,
                 
-                (EXISTS(SELECT 1 FROM Likes WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_liked,
-                (EXISTS(SELECT 1 FROM Saved_Posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved,
+                (EXISTS(SELECT 1 FROM likes WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_liked,
+                (EXISTS(SELECT 1 FROM saved_posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved,
 
                 GROUP_CONCAT(
                     DISTINCT CONCAT(Commenter.full_name, ':::', C.content) 
@@ -815,27 +816,26 @@ class Recipe{
                     SEPARATOR '|||'
                 ) as raw_tags
 
-            FROM Recipes R
-            JOIN Users U ON R.user_id = U.user_id
+            FROM recipes R
+            JOIN users U ON R.user_id = U.user_id
             
             LEFT JOIN recipe_ingredients RI ON R.recipe_id = RI.recipe_id
-            LEFT JOIN Ingredients I ON RI.ingredient_id = I.ingredient_id
+            LEFT JOIN ingredients I ON RI.ingredient_id = I.ingredient_id
             
-            LEFT JOIN Comments C ON R.recipe_id = C.post_id AND C.post_type = 'recipe'
-            LEFT JOIN Users Commenter ON C.user_id = Commenter.user_id
+            LEFT JOIN comments C ON R.recipe_id = C.post_id AND C.post_type = 'recipe'
+            LEFT JOIN users Commenter ON C.user_id = Commenter.user_id
             
             LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
-            LEFT JOIN Tags T ON TP.tag_id = T.tag_id
+            LEFT JOIN tags T ON TP.tag_id = T.tag_id
 
             WHERE R.status = 'public'
-            GROUP BY R.recipe_id
+            GROUP BY R.recipe_id, U.full_name, U.avatar 
             ORDER BY R.created_at DESC 
-            LIMIT ?
+            LIMIT ${parsedLimit}
             `;
 
-            const sqlParams = [limit.toString()];
             
-            const [result] = await pool.execute(sql, [currentUserId, currentUserId, ...sqlParams]);
+            const [result] = await pool.execute(sql, [currentUserId, currentUserId]);
 
             // Dùng hàm parseTagsData để biến raw_tags thành mảng objects
             return result.map(row => {
@@ -891,8 +891,8 @@ class Recipe{
                 U.avatar as author_avatar,
                 GROUP_CONCAT(DISTINCT I.name SEPARATOR ',') as ingredient_names,
                 
-                (EXISTS(SELECT 1 FROM Likes WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_liked,
-                (EXISTS(SELECT 1 FROM Saved_Posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved,
+                (EXISTS(SELECT 1 FROM likes WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_liked,
+                (EXISTS(SELECT 1 FROM saved_posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved,
 
                 GROUP_CONCAT(
                     DISTINCT CONCAT(Commenter.full_name, ':::', C.content) 
@@ -905,20 +905,20 @@ class Recipe{
                     SEPARATOR '|||'
                 ) as raw_tags
 
-            FROM Recipes R
-            JOIN Users U ON R.user_id = U.user_id
+            FROM recipes R
+            JOIN users U ON R.user_id = U.user_id
             
             LEFT JOIN recipe_ingredients RI ON R.recipe_id = RI.recipe_id
-            LEFT JOIN Ingredients I ON RI.ingredient_id = I.ingredient_id
+            LEFT JOIN ingredients I ON RI.ingredient_id = I.ingredient_id
             
-            LEFT JOIN Comments C ON R.recipe_id = C.post_id AND C.post_type = 'recipe'
-            LEFT JOIN Users Commenter ON C.user_id = Commenter.user_id
+            LEFT JOIN comments C ON R.recipe_id = C.post_id AND C.post_type = 'recipe'
+            LEFT JOIN users Commenter ON C.user_id = Commenter.user_id
             
             LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
-            LEFT JOIN Tags T ON TP.tag_id = T.tag_id
+            LEFT JOIN tags T ON TP.tag_id = T.tag_id
 
             WHERE R.user_id = ?
-            GROUP BY R.recipe_id
+            GROUP BY R.recipe_id, U.full_name, U.avatar
             ORDER BY R.created_at DESC 
             `
             const [result] = await pool.execute(sql, [userId, userId, userId]);
@@ -947,9 +947,9 @@ class Recipe{
                         DISTINCT CONCAT(T.tag_id, ':::', T.name) 
                         SEPARATOR '|||'
                     ) as raw_tags
-                FROM Recipes R
+                FROM recipes R
                 LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
-                LEFT JOIN Tags T ON TP.tag_id = T.tag_id
+                LEFT JOIN tags T ON TP.tag_id = T.tag_id
                 WHERE R.user_id = ? AND R.status = "public"
                 GROUP BY R.recipe_id
                 ORDER BY R.created_at DESC
@@ -979,8 +979,8 @@ class Recipe{
                     C.created_at,
                     U.full_name AS user_name,
                     U.avatar AS user_avatar
-                FROM Comments C
-                JOIN Users U ON C.user_id = U.user_id
+                FROM comments C
+                JOIN users U ON C.user_id = U.user_id
                 WHERE C.post_id = ? 
                   AND C.post_type = 'recipe'
                 ORDER BY C.created_at DESC
@@ -998,7 +998,7 @@ class Recipe{
     static async updateStatus(recipeId, newStatus) {
         try {
             const sql = `
-                UPDATE Recipes 
+                UPDATE recipes 
                 SET status = ?, update_at = NOW() 
                 WHERE recipe_id = ?
             `;
@@ -1018,8 +1018,8 @@ class Recipe{
         let query = `
             SELECT r.recipe_id, r.title, r.status, r.created_at, r.total_calo, 
                    u.full_name as author_name 
-            FROM Recipes r
-            JOIN Users u ON r.user_id = u.user_id
+            FROM recipes r
+            JOIN users u ON r.user_id = u.user_id
         `;
         let params = [];
 
@@ -1028,9 +1028,7 @@ class Recipe{
             params.push(`%${search}%`, `%${search}%`);
         }
 
-        query += ` ORDER BY ${orderBy} ${orderDir} LIMIT ? OFFSET ?`;
-        console.log("Admin Query:", query);
-        params.push(limit.toString(), offset.toString());
+        query += ` ORDER BY ${orderBy} ${orderDir} LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}`;
 
         const [rows] = await pool.execute(query, params);
         return rows;
@@ -1039,7 +1037,7 @@ class Recipe{
     static async getRecipeStatusDistribution() {
         const query = `
             SELECT status, COUNT(*) as count 
-            FROM Recipes 
+            FROM recipes 
             GROUP BY status
         `;
         const [rows] = await pool.execute(query);
@@ -1048,7 +1046,7 @@ class Recipe{
 
     // 2. [SỬA LỖI] Đếm tổng số recipe
     static async countAllRecipes(search) {
-        let query = `SELECT COUNT(*) as total FROM Recipes`;
+        let query = `SELECT COUNT(*) as total FROM recipes`;
         let params = [];
         if (search) {
             query += ` WHERE title LIKE ?`;
@@ -1081,28 +1079,28 @@ class Recipe{
                     R.*, 
                     U.full_name AS author_name, 
                     U.avatar AS author_avatar,
-                    (EXISTS(SELECT 1 FROM Likes WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_liked,
-                    (EXISTS(SELECT 1 FROM Saved_Posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved,
+                    (EXISTS(SELECT 1 FROM likes WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_liked,
+                    (EXISTS(SELECT 1 FROM saved_posts WHERE post_id = R.recipe_id AND post_type = 'recipe' AND user_id = ?)) as is_saved,
                     
                     GROUP_CONCAT(
                         DISTINCT CONCAT(T.tag_id, ':::', T.name) 
                         SEPARATOR '|||'
                     ) as raw_tags
                     
-                FROM Saved_Posts SP
-                JOIN Recipes R ON SP.post_id = R.recipe_id
-                JOIN Users U ON R.user_id = U.user_id
+                FROM saved_posts SP
+                JOIN recipes R ON SP.post_id = R.recipe_id
+                JOIN users U ON R.user_id = U.user_id
                 
                 LEFT JOIN tag_post TP ON R.recipe_id = TP.post_id AND TP.post_type = 'recipe'
-                LEFT JOIN Tags T ON TP.tag_id = T.tag_id
+                LEFT JOIN tags T ON TP.tag_id = T.tag_id
                 
                 WHERE SP.user_id = ? AND SP.post_type = 'recipe'
-                GROUP BY R.recipe_id
+                GROUP BY R.recipe_id, U.full_name, U.avatar
                 ${orderByClause}
-                LIMIT ? OFFSET ?
+                IMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}
             `;
 
-            const [recipes] = await pool.execute(sql, [userId, userId, userId, limit.toString(), offset.toString()]);
+            const [recipes] = await pool.execute(sql, [userId, userId, userId]);
 
             const formattedRecipes = recipes.map(row => {
                 const { raw_tags, ...rest } = row;
@@ -1137,7 +1135,7 @@ class Recipe{
     static async getRecipeGrowthStats(days = 30) {
         const query = `
             SELECT DATE(created_at) as date, COUNT(*) as count 
-            FROM Recipes 
+            FROM recipes 
             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
             GROUP BY DATE(created_at)
             ORDER BY date ASC
@@ -1165,7 +1163,7 @@ class Recipe{
 
         if (updates.length === 1) return true; // Không có gì update
 
-        const sql = `UPDATE Recipes SET ${updates.join(', ')} WHERE recipe_id = ?`;
+        const sql = `UPDATE recipes SET ${updates.join(', ')} WHERE recipe_id = ?`;
         params.push(recipeId);
 
         const [result] = await pool.execute(sql, params);

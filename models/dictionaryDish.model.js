@@ -16,12 +16,12 @@ const DictionaryDish = {
         const order = (String(sortOrder).toUpperCase() === 'ASC') ? 'ASC' : 'DESC';
 
         const query = `
-            SELECT * FROM Dictionary_Dishes 
+            SELECT * FROM dictionary_dishes 
             WHERE original_name LIKE ? OR english_name LIKE ? OR country LIKE ?
             ORDER BY ${key} ${order}
-            LIMIT ? OFFSET ?
+            LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}
         `;
-        const [rows] = await pool.execute(query, [searchTerm, searchTerm, searchTerm, String(limit), String(offset)]);
+        const [rows] = await pool.execute(query, [searchTerm, searchTerm, searchTerm]);
         return rows;
     },
 
@@ -30,7 +30,7 @@ const DictionaryDish = {
         const searchTerm = `%${search}%`;
         const query = `
             SELECT COUNT(*) as total 
-            FROM Dictionary_Dishes 
+            FROM dictionary_dishes 
             WHERE original_name LIKE ? OR english_name LIKE ? OR country LIKE ?
         `;
         const [rows] = await pool.execute(query, [searchTerm, searchTerm, searchTerm]);
@@ -42,7 +42,7 @@ const DictionaryDish = {
         const searchTerm = `%${search}%`;
         const query = `
             SELECT COUNT(*) as total 
-            FROM Dictionary_Dishes 
+            FROM dictionary_dishes 
             WHERE original_name LIKE ? OR english_name LIKE ? OR country LIKE ?
         `;
         const [rows] = await pool.execute(query, [searchTerm, searchTerm, searchTerm]);
@@ -51,14 +51,14 @@ const DictionaryDish = {
 
     // Lấy chi tiết một món ăn
     getById: async (id) => {
-        const query = `SELECT * FROM Dictionary_Dishes WHERE dish_id = ?`;
+        const query = `SELECT * FROM dictionary_dishes WHERE dish_id = ?`;
         const [rows] = await pool.execute(query, [id]);
         return rows[0];
     },
 
     getEateriesByDishId: async (id) => {
         const [eateries] = await pool.execute(
-            `SELECT name, address FROM Dish_Eateries WHERE dish_id = ?`, [id]
+            `SELECT name, address FROM dish_eateries WHERE dish_id = ?`, [id]
         );
         return eateries;
     },
@@ -69,13 +69,13 @@ const DictionaryDish = {
                 d.country, 
                 c.lat, c.lng, 
                 COUNT(*) as total_dishes,
-                (SELECT image_url FROM Dictionary_Dishes d2 
+                (SELECT image_url FROM dictionary_dishes d2 
                  WHERE d2.country = d.country ORDER BY point DESC LIMIT 1) as top_dish_image,
-                (SELECT original_name FROM Dictionary_Dishes d2 
+                (SELECT original_name FROM dictionary_dishes d2 
                  WHERE d2.country = d.country ORDER BY point DESC LIMIT 1) as top_dish_name
-            FROM Dictionary_Dishes d
-            JOIN Countries_Coordinates c ON d.country = c.country_name
-            GROUP BY d.country
+            FROM dictionary_dishes d
+            JOIN countries_coordinates c ON d.country = c.country_name
+            GROUP BY d.country, c.lat, c.lng
         `;
         const [rows] = await pool.execute(query);
         return rows;
@@ -84,7 +84,7 @@ const DictionaryDish = {
     getMapAllDishes: async () => {
         const query = `
             SELECT dish_id, original_name, english_name, description, image_url, point, like_count, country, latitude, longitude 
-            FROM Dictionary_Dishes 
+            FROM dictionary_dishes 
             WHERE latitude IS NOT NULL
         `;
         const [rows] = await pool.execute(query);
@@ -94,14 +94,14 @@ const DictionaryDish = {
     getFullDetail: async (id) => {
         // 1. Lấy thông tin cơ bản của món ăn
         const [dishRows] = await pool.execute(
-            `SELECT * FROM Dictionary_Dishes WHERE dish_id = ?`, [id]
+            `SELECT * FROM dictionary_dishes WHERE dish_id = ?`, [id]
         );
         if (dishRows.length === 0) return null;
         const dish = dishRows[0];
 
         // 2. Lấy danh sách địa điểm ăn uống (Eateries)
         const [eateries] = await pool.execute(
-            `SELECT name, address FROM Dish_Eateries WHERE dish_id = ?`, [id]
+            `SELECT name, address FROM dish_eateries WHERE dish_id = ?`, [id]
         );
 
         // 3. Lấy danh sách công thức liên kết (Recipes)
@@ -120,7 +120,7 @@ const DictionaryDish = {
         } = dishData;
 
         const query = `
-            INSERT INTO Dictionary_Dishes 
+            INSERT INTO dictionary_dishes 
             (dish_id, admin_id, original_name, english_name, description, history, country, image_url, latitude, longitude)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
@@ -144,14 +144,14 @@ const DictionaryDish = {
         const values = keys.map(key => updateData[key]);
         values.push(dishId);
 
-        const query = `UPDATE Dictionary_Dishes SET ${setClauses.join(', ')} WHERE dish_id = ?`;
+        const query = `UPDATE dictionary_dishes SET ${setClauses.join(', ')} WHERE dish_id = ?`;
         const [result] = await pool.execute(query, values);
         return result;
     },
 
     // Xóa món ăn (ON DELETE CASCADE sẽ tự động xóa trong bảng dish_eateries)
     deleteDish: async (dishId) => {
-        const query = `DELETE FROM Dictionary_Dishes WHERE dish_id = ?`;
+        const query = `DELETE FROM dictionary_dishes WHERE dish_id = ?`;
         const [result] = await pool.execute(query, [dishId]);
         return result;
     },
@@ -161,7 +161,7 @@ const DictionaryDish = {
         if (!eateriesArray || eateriesArray.length === 0) return;
 
         // eateriesArray format: [{ eatery_id, name, address, user_id (có thể null) }]
-        const query = `INSERT INTO Dish_Eateries (eatery_id, dish_id, name, address) VALUES (?, ?, ?, ?)`;
+        const query = `INSERT INTO dish_eateries (eatery_id, dish_id, name, address) VALUES (?, ?, ?, ?)`;
         
         // Chạy Promise.all để insert nhiều dòng
         const promises = eateriesArray.map(eatery => {
@@ -173,7 +173,7 @@ const DictionaryDish = {
 
     // Xóa toàn bộ Eateries của 1 món ăn (Dùng khi update lại danh sách quán ăn)
     deleteEateriesByDishId: async (dishId) => {
-        const query = `DELETE FROM Dish_Eateries WHERE dish_id = ?`;
+        const query = `DELETE FROM dish_eateries WHERE dish_id = ?`;
         await pool.execute(query, [dishId]);
     }
     

@@ -9,8 +9,8 @@ class Report {
                 r.report_id, r.reason, r.created_at,
                 u.full_name as reporter_name, u.email as reporter_email,
                 r.post_id, r.post_type
-            FROM Reports r
-            JOIN Users u ON r.reporter_user_id = u.user_id
+            FROM reports r
+            JOIN users u ON r.reporter_user_id = u.user_id
             WHERE r.status = 'pending'
             ORDER BY r.created_at DESC
         `;

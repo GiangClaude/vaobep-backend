@@ -8,7 +8,7 @@ class PointTransaction {
    static async create({ userId, type, amount, relatedUserId = null, message = '' }, connection = null) {
         const dbExec = connection || pool; // Nếu có connection thì dùng, không thì dùng pool
         const sql = `
-            INSERT INTO Point_Transactions (user_id, type, amount, related_user_id, message)
+            INSERT INTO point_transactions (user_id, type, amount, related_user_id, message)
             VALUES (?, ?, ?, ?, ?)
         `;
         const [result] = await dbExec.execute(sql, [userId, type, amount, relatedUserId, message]);
@@ -18,7 +18,7 @@ class PointTransaction {
     // Kiểm tra xem hôm nay user đã điểm danh chưa
     static async hasCheckedInToday(userId) {
         const sql = `
-            SELECT transaction_id FROM Point_Transactions 
+            SELECT transaction_id FROM point_transactions 
             WHERE user_id = ? 
             AND type = 'checkin' 
             AND DATE(created_at) = CURRENT_DATE()
@@ -33,8 +33,8 @@ class PointTransaction {
         const offset = (page - 1) * limit;
         let sql = `
             SELECT t.*, u.full_name as related_user_name, u.avatar as related_user_avatar
-            FROM Point_Transactions t
-            LEFT JOIN Users u ON t.related_user_id = u.user_id
+            FROM point_transactions t
+            LEFT JOIN users u ON t.related_user_id = u.user_id
             WHERE t.user_id = ?
         `;
         const params = [userId];
@@ -44,13 +44,12 @@ class PointTransaction {
             params.push(filterMonth);
         }
 
-        sql += ` ORDER BY t.created_at DESC LIMIT ? OFFSET ?`;
-        params.push(limit.toString(), offset.toString()); // Limit/Offset cần string hoặc int tùy driver, để string cho an toàn
+        sql += ` ORDER BY t.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
 
         const [rows] = await pool.execute(sql, params);
 
         // Đếm tổng số để phân trang
-        let countSql = `SELECT COUNT(*) as total FROM Point_Transactions WHERE user_id = ?`;
+        let countSql = `SELECT COUNT(*) as total FROM point_transactions WHERE user_id = ?`;
         const countParams = [userId];
         if (filterMonth) {
             countSql += ` AND DATE_FORMAT(created_at, '%Y-%m') = ?`;

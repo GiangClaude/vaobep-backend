@@ -21,8 +21,8 @@ const ArticleModel = {
         let query = `
             SELECT a.article_id, a.title, a.status, a.created_at, a.read_time, a.report_count,
                    u.full_name as author_name, u.role as author_role
-            FROM Article_Posts a
-            JOIN Users u ON a.user_id = u.user_id
+            FROM article_posts a
+            JOIN users u ON a.user_id = u.user_id
             WHERE 1=1
         `;
         let params = [];
@@ -37,8 +37,7 @@ const ArticleModel = {
             params.push(statusFilter);
         }
 
-        query += ` ORDER BY ${key} ${order} LIMIT ? OFFSET ?`;
-        params.push(limit.toString(), offset.toString());
+        query += ` ORDER BY ${key} ${order} LIMIT ${parseInt(limit || 10)} OFFSET ${parseInt(offset) || 0}`;
 
         const [rows] = await pool.execute(query, params);
         return rows;
@@ -48,8 +47,8 @@ const ArticleModel = {
     countArticlesByAdmin: async (search, statusFilter) => {
         let query = `
             SELECT COUNT(*) as total 
-            FROM Article_Posts a
-            JOIN Users u ON a.user_id = u.user_id
+            FROM article_posts a
+            JOIN users u ON a.user_id = u.user_id
             WHERE 1=1
         `;
         let params = [];
@@ -78,7 +77,7 @@ const ArticleModel = {
         const executor = connection || pool;
         // console.log("Debug ArticleModel.create:", { articleId, userId, title, description, content, coverImage, status, readTime });
         const query = `
-            INSERT INTO Article_Posts (article_id, user_id, title, description, content, cover_image, status, read_time)
+            INSERT INTO article_posts (article_id, user_id, title, description, content, cover_image, status, read_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const [result] = await executor.execute(query, [
@@ -99,7 +98,7 @@ const ArticleModel = {
         const values = keys.map(key => updateData[key]);
         values.push(articleId);
 
-        const query = `UPDATE Article_Posts SET ${setClauses.join(', ')} WHERE article_id = ?`;
+        const query = `UPDATE article_posts SET ${setClauses.join(', ')} WHERE article_id = ?`;
         const [result] = await executor.execute(query, values);
         return result;
     },
@@ -108,8 +107,8 @@ const ArticleModel = {
     findById: async (articleId) => {
         const query = `
             SELECT a.*, u.full_name as author_name, u.avatar as author_avatar
-            FROM Article_Posts a
-            JOIN Users u ON a.user_id = u.user_id
+            FROM article_posts a
+            JOIN users u ON a.user_id = u.user_id
             WHERE a.article_id = ?
         `;
         const [rows] = await pool.execute(query, [articleId]);
@@ -130,8 +129,8 @@ const ArticleModel = {
                        + (3 * GREATEST(0, 30 - TIMESTAMPDIFF(DAY, a.created_at, NOW())) / 30)
                        + (RAND() * 0.5)
                    ) AS score
-            FROM Article_Posts a
-            JOIN Users u ON a.user_id = u.user_id
+            FROM article_posts a
+            JOIN users u ON a.user_id = u.user_id
             WHERE a.status = 'public'
         `;
 
@@ -143,7 +142,7 @@ const ArticleModel = {
                 OR a.content LIKE ? 
                 OR EXISTS (
                     SELECT 1 FROM tag_post tp 
-                    JOIN Tags t ON tp.tag_id = t.tag_id 
+                    JOIN tags t ON tp.tag_id = t.tag_id 
                     WHERE tp.post_id = a.article_id AND tp.post_type = 'article' AND t.name LIKE ?
                 )
             )`;
@@ -151,7 +150,7 @@ const ArticleModel = {
             params.push(searchVal, searchVal, searchVal, searchVal);
         }
 
-        // 2. Xử lý lọc theo danh sách Tags (Logic AND: Phải có đủ tất cả tag đã chọn)
+        // 2. Xử lý lọc theo danh sách tags (Logic AND: Phải có đủ tất cả tag đã chọn)
         if (tagIds && tagIds.length > 0) {
             const placeholders = tagIds.map(() => '?').join(',');
             query += ` AND a.article_id IN (
@@ -183,8 +182,7 @@ const ArticleModel = {
         }
 
         // 4. Phân trang
-        query += ` LIMIT ? OFFSET ?`;
-        params.push(limit.toString(), offset.toString());
+        query += ` LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}`;
 
         // console.log("Query: ", query, params);
 
@@ -200,7 +198,7 @@ const ArticleModel = {
         let params = [];
         let query = `
             SELECT COUNT(DISTINCT a.article_id) as total 
-            FROM Article_Posts a
+            FROM article_posts a
             WHERE a.status = 'public'
         `;
 
@@ -209,7 +207,7 @@ const ArticleModel = {
                 a.title LIKE ? OR a.description LIKE ? OR a.content LIKE ?
                 OR EXISTS (
                     SELECT 1 FROM tag_post tp 
-                    JOIN Tags t ON tp.tag_id = t.tag_id 
+                    JOIN tags t ON tp.tag_id = t.tag_id 
                     WHERE tp.post_id = a.article_id AND tp.post_type = 'article' AND t.name LIKE ?
                 )
             )`;
@@ -248,14 +246,14 @@ const ArticleModel = {
                        + (3 * GREATEST(0, 30 - TIMESTAMPDIFF(DAY, a.created_at, NOW())) / 30)
                        + (RAND() * 0.5)
                    ) AS score
-            FROM Article_Posts a
-            JOIN Users u ON a.user_id = u.user_id
+            FROM article_posts a
+            JOIN users u ON a.user_id = u.user_id
             WHERE a.status = 'public'
             ORDER BY score DESC
-            LIMIT ?
+            LIMIT ${parseInt(limit) || 10}
         `;
 
-        const [rows] = await pool.execute(query, [limit.toString()]);
+        const [rows] = await pool.execute(query);
         return rows;
     },
 
@@ -270,13 +268,13 @@ const ArticleModel = {
                 s.created_at as saved_at,
                 u.full_name as author_name, u.avatar as author_avatar, u.user_id as author_id
             FROM Saved_Posts s
-            JOIN Article_Posts a ON s.post_id = a.article_id
-            JOIN Users u ON a.user_id = u.user_id
+            JOIN article_posts a ON s.post_id = a.article_id
+            JOIN users u ON a.user_id = u.user_id
             WHERE s.user_id = ? AND s.post_type = 'article'
             ORDER BY s.created_at DESC
-            LIMIT ? OFFSET ?
+            LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}
         `;
-        const [rows] = await pool.execute(query, [userId, limit.toString(), offset.toString()]);
+        const [rows] = await pool.execute(query, [userId]);
         return rows;
     },
 
@@ -295,8 +293,8 @@ const ArticleModel = {
     getOwnerArticles: async (userId) => {
         const query = `
             SELECT AP.*, U.full_name as author_name, U.avatar as author_avatar
-            FROM Article_Posts AP
-            JOIN Users U ON AP.user_id = U.user_id
+            FROM article_posts AP
+            JOIN users U ON AP.user_id = U.user_id
             WHERE AP.user_id = ?
             ORDER BY AP.created_at DESC
         `;
@@ -306,7 +304,7 @@ const ArticleModel = {
 
     // 6. Xóa bài viết
     deleteById: async (articleId) => {
-        const query = `DELETE FROM Article_Posts WHERE article_id = ?`;
+        const query = `DELETE FROM article_posts WHERE article_id = ?`;
         const [result] = await pool.execute(query, [articleId]);
         return result;
     }
@@ -315,7 +313,7 @@ const ArticleModel = {
     // 7. Cập nhật status và update_at (dùng bởi admin controller)
     updateStatus: async (articleId, status) => {
         const query = `
-            UPDATE Article_Posts 
+            UPDATE article_posts 
             SET status = ?, update_at = NOW() 
             WHERE article_id = ?
         `;
@@ -325,7 +323,7 @@ const ArticleModel = {
 
     // 8. Đếm tổng số bài viết (dùng bởi dashboard)
     countAllArticles: async (search = '') => {
-        let query = `SELECT COUNT(*) as total FROM Article_Posts`;
+        let query = `SELECT COUNT(*) as total FROM article_posts`;
         const params = [];
         if (search) {
             query += ` WHERE title LIKE ? OR description LIKE ?`;

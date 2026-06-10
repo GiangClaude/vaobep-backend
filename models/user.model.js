@@ -50,14 +50,14 @@ class User {
                 u.account_status,
                 u.created_at,
                -- Đếm số công thức (có thể thêm điều kiện status = 'public' nếu muốn)
-                (SELECT COUNT(*) FROM Recipes r WHERE r.user_id = u.user_id) as recipes_count,
+                (SELECT COUNT(*) FROM recipes r WHERE r.user_id = u.user_id) as recipes_count,
                 
                 -- Đếm số người theo dõi
-                (SELECT COUNT(*) FROM Follows f WHERE f.following_id = u.user_id) as followers_count,
+                (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) as followers_count,
                 
                 -- Đếm số bài đã lưu
-                (SELECT COUNT(*) FROM Saved_Posts s WHERE s.user_id = u.user_id) as saved_count, -- Placeholder tạm thời
-                (SELECT COUNT(*) FROM Point_Transactions pt WHERE pt.user_id = u.user_id AND pt.type = 'checkin' AND DATE(pt.created_at) = CURRENT_DATE()) as is_checked_in
+                (SELECT COUNT(*) FROM saved_posts s WHERE s.user_id = u.user_id) as saved_count, -- Placeholder tạm thời
+                (SELECT COUNT(*) FROM point_transactions pt WHERE pt.user_id = u.user_id AND pt.type = 'checkin' AND DATE(pt.created_at) = CURRENT_DATE()) as is_checked_in
             FROM users u 
              WHERE u.user_id = ? AND u.account_status = 'active'
             `;
@@ -91,9 +91,9 @@ class User {
             SELECT 
                 u.user_id, u.email, u.full_name, u.avatar, u.role, u.bio, u.points,
                 u.account_status, u.created_at,
-                (SELECT COUNT(*) FROM Recipes r WHERE r.user_id = u.user_id) as recipes_count,
-                (SELECT COUNT(*) FROM Follows f WHERE f.following_id = u.user_id) as followers_count,
-                (SELECT COUNT(*) FROM Saved_Posts s WHERE s.user_id = u.user_id) as saved_count
+                (SELECT COUNT(*) FROM recipes r WHERE r.user_id = u.user_id) as recipes_count,
+                (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) as followers_count,
+                (SELECT COUNT(*) FROM saved_posts s WHERE s.user_id = u.user_id) as saved_count
             FROM users u 
             WHERE u.user_id = ?
             -- KHÔNG CÓ filter account_status = 'active' ở đây
@@ -133,19 +133,19 @@ class User {
                     u.account_status,
                     u.created_at,
                     -- Đếm số công thức PUBLIC
-                    (SELECT COUNT(*) FROM Recipes r WHERE r.user_id = u.user_id AND r.status = 'public') as recipes_count,
+                    (SELECT COUNT(*) FROM recipes r WHERE r.user_id = u.user_id AND r.status = 'public') as recipes_count,
                     
                     -- Đếm người theo dõi
-                    (SELECT COUNT(*) FROM Follows f WHERE f.following_id = u.user_id) as followers_count,
+                    (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) as followers_count,
                     
                     -- Đếm số người đang theo dõi
-                    (SELECT COUNT(*) FROM Follows f WHERE f.follower_id = u.user_id) as following_count,
+                    (SELECT COUNT(*) FROM follows f WHERE f.follower_id = u.user_id) as following_count,
 
                     -- [MỚI] Kiểm tra xem người xem (currentUserId) có đang follow user này không
                     -- Trả về 1 nếu có, 0 nếu không. Nếu currentUserId null thì trả về 0.
-                    (SELECT COUNT(*) FROM Follows f2 WHERE f2.follower_id = ? AND f2.following_id = u.user_id) > 0 as is_following
+                    (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = ? AND f2.following_id = u.user_id) > 0 as is_following
 
-                FROM Users u 
+                FROM users u 
                 WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'
             `;
             
@@ -197,7 +197,7 @@ class User {
 
     static async findByIdForUpdate(userId, connection) {
         // FOR UPDATE sẽ khóa dòng này lại, các transaction khác phải chờ
-        const sql = `SELECT user_id, full_name, email, points, account_status FROM Users u WHERE u.user_id = ? FOR UPDATE`;
+        const sql = `SELECT user_id, full_name, email, points, account_status FROM users u WHERE u.user_id = ? FOR UPDATE`;
         const [rows] = await connection.execute(sql, [userId]);
         return rows[0];
     }
@@ -205,13 +205,13 @@ class User {
     static async updatePoints(userId, amount, connection) {
         // Sử dụng connection truyền vào (nếu có) hoặc dùng pool mặc định
         const dbExec = connection || pool;
-        const sql = `UPDATE Users u SET u.points = u.points + ?  WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'`;
+        const sql = `UPDATE users u SET u.points = u.points + ?  WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'`;
         const [result] = await dbExec.execute(sql, [amount, userId]);
         return result.affectedRows > 0;
     }
 
     static async isUserActive(userId) {
-        const sql = `SELECT user_id FROM Users u WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'`;
+        const sql = `SELECT user_id FROM users u WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'`;
         const [rows] = await pool.execute(sql, [userId]);
         return rows.length > 0;
     }
@@ -297,7 +297,7 @@ class User {
             // Query đếm tổng
             const countSql = `
                 SELECT COUNT(*) as total 
-                FROM Users u
+                FROM users u
                 WHERE (full_name LIKE ?) AND account_status = 'active'  AND role != 'admin'
             `;
             const [countRows] = await pool.execute(countSql, [kw]);
@@ -319,19 +319,19 @@ class User {
                     u.created_at,
                     COUNT(f.follower_id) as followers_count,
                     -- Check trạng thái follow đối với currentUserId
-                    (SELECT COUNT(*) FROM Follows f2 WHERE f2.follower_id = ? AND f2.following_id = u.user_id) > 0 as is_following
-                FROM Users u
-                LEFT JOIN Follows f ON u.user_id = f.following_id
+                    (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = ? AND f2.following_id = u.user_id) > 0 as is_following
+                FROM users u
+                LEFT JOIN follows f ON u.user_id = f.following_id
                 WHERE (u.full_name LIKE ?) 
                   AND u.account_status = 'active'
                   AND u.role != 'admin'
                 GROUP BY u.user_id
                 ORDER BY ${orderBy}
-                LIMIT ? OFFSET ?
+                LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
             `;
 
             // Params: [currentUserId, keyword, keyword, limit, offset]
-            const [users] = await pool.query(sql, [currentUserId, kw, parseInt(limit), parseInt(offset)]);
+            const [users] = await pool.query(sql, [currentUserId, kw]);
 
             // Map lại key cho chuẩn boolean
             const formattedUsers = users.map(user => ({
@@ -386,7 +386,7 @@ class User {
             if (updates.length === 1) return 0;
 
             // Xây dựng câu query
-            const sql = `UPDATE Users SET ${updates.join(", ")} WHERE user_id = ?`;
+            const sql = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`;
             
             // Push userId vào cuối mảng values (cho dấu ? ở WHERE)
             values.push(userId);
@@ -407,7 +407,7 @@ class User {
         const orderBy = allowedSorts.includes(sortKey) ? sortKey : 'created_at';
         const orderDir = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
-        let query = `SELECT user_id, full_name, email, role, account_status, points, created_at FROM Users`;
+        let query = `SELECT user_id, full_name, email, role, account_status, points, created_at FROM users`;
         let params = [];
         
         if (search) {
@@ -416,16 +416,15 @@ class User {
         }
         
         // Dynamic Order By
-        query += ` ORDER BY ${orderBy} ${orderDir} LIMIT ? OFFSET ?`;
+        query += ` ORDER BY ${orderBy} ${orderDir} LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
         
-        params.push(limit.toString(), offset.toString());
         
         const [rows] = await pool.execute(query, params);
         return rows;
     }
 
     static async countUsers(search) {
-        let query = `SELECT COUNT(*) as total FROM Users`;
+        let query = `SELECT COUNT(*) as total FROM users`;
         let params = [];
         if (search) {
             query += ` WHERE full_name LIKE ? OR email LIKE ?`;
@@ -436,7 +435,7 @@ class User {
     }
 
     static async updateStatus(userId, status){
-        const query = `UPDATE Users SET account_status = ? WHERE user_id = ?`;
+        const query = `UPDATE users SET account_status = ? WHERE user_id = ?`;
         const [result] = await pool.execute(query, [status, userId]); // Sửa db.execute -> pool.execute
         return result;
     }
@@ -444,7 +443,7 @@ class User {
     static async getUserGrowthStats(days = 7) {
         const query = `
             SELECT DATE(created_at) as date, COUNT(*) as count 
-            FROM Users 
+            FROM users 
             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
             GROUP BY DATE(created_at)
             ORDER BY date ASC
@@ -456,7 +455,7 @@ class User {
     static async getUserRoleDistribution() {
         const query = `
             SELECT role, COUNT(*) as count 
-            FROM Users 
+            FROM users 
             GROUP BY role
         `;
         const [rows] = await pool.execute(query);
@@ -485,7 +484,7 @@ class User {
         // Nếu không có gì để update
         if (updates.length === 1) return true; 
 
-        const sql = `UPDATE Users SET ${updates.join(', ')} WHERE user_id = ?`;
+        const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`;
         params.push(userId);
 
         const [result] = await pool.execute(sql, params);

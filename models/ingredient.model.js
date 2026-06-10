@@ -16,11 +16,11 @@ class Ingredient {
         // Tạo chuỗi dấu ? cho câu query IN (...)
         const placeholders = recipeIds.map(() => '?').join(',');
         
-        // Query bảng trung gian recipe_ingredients JOIN với Ingredients
+        // Query bảng trung gian recipe_ingredients JOIN với ingredients
         const sql = `
             SELECT ri.recipe_id, i.name
             FROM recipe_ingredients ri
-            JOIN Ingredients i ON ri.ingredient_id = i.ingredient_id
+            JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
             WHERE ri.recipe_id IN (${placeholders})
         `;
         
@@ -31,8 +31,8 @@ class Ingredient {
     static async getPendingIngredients(search = '') {
         let query = `
             SELECT i.ingredient_id, i.name, i.status, c.calo_per_100g 
-            FROM Ingredients i
-            LEFT JOIN CaloForIngredients c ON i.ingredient_id = c.ingredient_id
+            FROM ingredients i
+            LEFT JOIN caloforingredients c ON i.ingredient_id = c.ingredient_id
             WHERE i.status = 'pending'
         `;
         
@@ -48,7 +48,7 @@ class Ingredient {
 
     // 2. Duyệt hoặc Từ chối nguyên liệu
     static async updateStatus(id, status){
-        const query = `UPDATE Ingredients SET status = ? WHERE ingredient_id = ?`;
+        const query = `UPDATE ingredients SET status = ? WHERE ingredient_id = ?`;
         const [result] = await pool.execute(query, [status, id]); // Sửa db.execute -> pool.execute
         return result;
     }
@@ -56,7 +56,7 @@ class Ingredient {
     // 3. Cập nhật Calo (Admin sửa lại calo cho đúng trước khi duyệt)
    static async updateCalo(id, calo) {
         const query = `
-            INSERT INTO CaloForIngredients (ingredient_id, calo_per_100g) 
+            INSERT INTO caloforingredients (ingredient_id, calo_per_100g) 
             VALUES (?, ?) 
             ON DUPLICATE KEY UPDATE calo_per_100g = ?
         `;
@@ -80,8 +80,8 @@ class Ingredient {
 
         let query = `
             SELECT i.ingredient_id, i.name, i.status, c.calo_per_100g 
-            FROM Ingredients i
-            LEFT JOIN CaloForIngredients c ON i.ingredient_id = c.ingredient_id
+            FROM ingredients i
+            LEFT JOIN caloforingredients c ON i.ingredient_id = c.ingredient_id
         `;
         const params = [];
 
@@ -90,8 +90,7 @@ class Ingredient {
             params.push(`%${search}%`);
         }
 
-        query += ` ORDER BY ${key} ${order} LIMIT ? OFFSET ?`;
-        params.push(limit.toString(), offset.toString());
+        query += ` ORDER BY ${key} ${order} LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}`;
 
         const [rows] = await pool.execute(query, params);
         return rows;
@@ -99,7 +98,7 @@ class Ingredient {
 
     // 5. Đếm tổng số nguyên liệu cho Admin (Hỗ trợ phân trang)
     static async countAllAdmin(search = '') {
-        let query = `SELECT COUNT(*) as total FROM Ingredients`;
+        let query = `SELECT COUNT(*) as total FROM ingredients`;
         const params = [];
 
         if (search) {
@@ -118,14 +117,14 @@ class Ingredient {
 
     // 6. Tạo nguyên liệu mới (Admin tạo thủ công)
     static async create(id, name, status = 'approved') {
-        const query = `INSERT INTO Ingredients (ingredient_id, name, status) VALUES (?, ?, ?)`;
+        const query = `INSERT INTO ingredients (ingredient_id, name, status) VALUES (?, ?, ?)`;
         const [result] = await pool.execute(query, [id, name, status]);
         return result;
     }
 
     // 7. Cập nhật tên nguyên liệu
     static async updateName(id, name) {
-        const query = `UPDATE Ingredients SET name = ? WHERE ingredient_id = ?`;
+        const query = `UPDATE ingredients SET name = ? WHERE ingredient_id = ?`;
         const [result] = await pool.execute(query, [name, id]);
         return result;
     }
@@ -134,7 +133,7 @@ class Ingredient {
     static async delete(id) {
         // Lưu ý: Sẽ xảy ra lỗi SQL Error nếu nguyên liệu này đang được dùng trong recipe_ingredients
         // Lỗi này sẽ được bắt (catch) và xử lý ở tầng Controller.
-        const query = `DELETE FROM Ingredients WHERE ingredient_id = ?`;
+        const query = `DELETE FROM ingredients WHERE ingredient_id = ?`;
         const [result] = await pool.execute(query, [id]);
         return result;
     }

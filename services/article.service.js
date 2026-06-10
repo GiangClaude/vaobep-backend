@@ -11,7 +11,7 @@ const fs = require('fs'); // Giữ lại cho existsSync nếu cần, nhưng ưu 
 
 const checkArticleOwner = async (articleId, userId) => {
     try {
-        const sql = 'SELECT user_id FROM Article_Posts WHERE article_id = ?';
+        const sql = 'SELECT user_id FROM article_posts WHERE article_id = ?';
         const [owner] = await db.pool.execute(sql, [articleId]);
         if (owner.length === 0) return false;
         return owner[0].user_id === userId;

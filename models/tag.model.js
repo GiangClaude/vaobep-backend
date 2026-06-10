@@ -5,7 +5,7 @@ class TagModel {
     static async getAll() {
         try {
             // Lấy tất cả các tag, sắp xếp theo tên
-            const sql = "SELECT * FROM Tags ORDER BY name ASC";
+            const sql = "SELECT * FROM tags ORDER BY name ASC";
             const [rows] = await pool.execute(sql);
             return rows;
         } catch (error) {
@@ -16,9 +16,9 @@ class TagModel {
 
     static async getTagsByPostId(postId) {
         try {
-            // Dùng JOIN để lấy chi tiết tag từ bảng Tags thông qua bảng trung gian tag_post
+            // Dùng JOIN để lấy chi tiết tag từ bảng tags thông qua bảng trung gian tag_post
             const sql = `
-                SELECT t.* FROM Tags t
+                SELECT t.* FROM tags t
                 JOIN tag_post tp ON t.tag_id = tp.tag_id
                 WHERE tp.post_id = ?
             `;

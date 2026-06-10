@@ -13,7 +13,7 @@ class LeaderboardModel {
         // 1. Lấy thống kê hiện tại của Recipe (Đã được Trigger cập nhật)
         const [recipeRows] = await exec.execute(
             `SELECT user_id, like_count, comment_count, rating_avg_score, is_trusted, report_count 
-             FROM Recipes WHERE recipe_id = ?`, 
+             FROM recipes WHERE recipe_id = ?`, 
             [recipeId]
         );
         if (recipeRows.length === 0) return;
@@ -21,7 +21,7 @@ class LeaderboardModel {
 
         // 2. Đếm số lượng bài viết / từ điển liên kết
         const [linkRows] = await exec.execute(
-            `SELECT COUNT(*) as linkCount FROM Recipe_Post_Links WHERE source_recipe_id = ?`, 
+            `SELECT COUNT(*) as linkCount FROM recipe_post_links WHERE source_recipe_id = ?`, 
             [recipeId]
         );
 
@@ -56,7 +56,7 @@ class LeaderboardModel {
         const newPoint = scoringUtils.calculateRecipeScore(scoreObj, growthStats);
 
         // 5. Cập nhật điểm cho Recipe
-        await exec.execute(`UPDATE Recipes SET point = ? WHERE recipe_id = ?`, [newPoint, recipeId]);
+        await exec.execute(`UPDATE recipes SET point = ? WHERE recipe_id = ?`, [newPoint, recipeId]);
 
         // 6. Điểm Recipe thay đổi -> Điểm tác giả thay đổi -> Gọi đồng bộ điểm User
         await this.syncUserPoint(exec, stats.user_id);
@@ -71,13 +71,13 @@ class LeaderboardModel {
         // 1. Lấy trung bình điểm các Recipe của user và đếm số recipe trusted
         const [recipeStats] = await exec.execute(
             `SELECT AVG(point) as avg_point, SUM(IF(is_trusted = 1, 1, 0)) as trusted_count 
-             FROM Recipes WHERE user_id = ? AND status = 'public'`, 
+             FROM recipes WHERE user_id = ? AND status = 'public'`, 
             [userId]
         );
 
         // 2. Lấy số lượng người theo dõi
         const [followRows] = await exec.execute(
-            `SELECT COUNT(*) as followerCount FROM Follows WHERE following_id = ?`, 
+            `SELECT COUNT(*) as followerCount FROM follows WHERE following_id = ?`, 
             [userId]
         );
 
@@ -96,7 +96,7 @@ class LeaderboardModel {
 
         let growthStats = { newFollowers: 0, newBadges: 0 };
         // Lấy tổng huy hiệu hiện tại
-        const [badgeRows] = await exec.execute(`SELECT COUNT(*) as badgeCount FROM User_Badges WHERE user_id = ?`, [userId]);
+        const [badgeRows] = await exec.execute(`SELECT COUNT(*) as badgeCount FROM user_badges WHERE user_id = ?`, [userId]);
 
         if (snapRows.length > 0) {
             growthStats.newFollowers = Math.max(0, followRows[0].followerCount - snapRows[0].followers);
@@ -112,7 +112,7 @@ class LeaderboardModel {
         const newPoint = scoringUtils.calculateUserScore(scoreObj, growthStats);
 
         // 5. Cập nhật điểm cho User
-        await exec.execute(`UPDATE Users SET rank_point = ? WHERE user_id = ?`, [newPoint, userId]);
+        await exec.execute(`UPDATE users SET rank_point = ? WHERE user_id = ?`, [newPoint, userId]);
     }
 
     // --- THÊM MỚI BẮT ĐẦU ---
@@ -130,13 +130,13 @@ class LeaderboardModel {
                  FROM tag_post tp 
                  JOIN Tags t ON tp.tag_id = t.tag_id 
                  WHERE tp.post_id = r.recipe_id AND tp.post_type = 'recipe') as tags
-            FROM Recipes r
-            JOIN Users u ON r.user_id = u.user_id
+            FROM recipes r
+            JOIN users u ON r.user_id = u.user_id
             WHERE r.status = 'public'
             ORDER BY r.point DESC
-            LIMIT ?
+            LIMIT ${parseInt(limit) || 10}
         `;
-        const [rows] = await db.pool.execute(sql, [limit.toString()]);
+        const [rows] = await db.pool.execute(sql);
         return rows;
     }
 
@@ -148,15 +148,15 @@ class LeaderboardModel {
         const sql = `
             SELECT 
                 u.user_id, u.full_name, u.avatar, u.bio, u.email, u.rank_point,
-                (SELECT COUNT(*) FROM Recipes r WHERE r.user_id = u.user_id AND r.status = 'public') as total_recipes,
-                (SELECT COUNT(*) FROM Recipes r2 WHERE r2.user_id = u.user_id AND r2.status = 'public' AND MONTH(r2.created_at) = MONTH(CURRENT_DATE()) AND YEAR(r2.created_at) = YEAR(CURRENT_DATE())) as new_recipes_this_month,
-                (SELECT COUNT(*) FROM Follows f WHERE f.following_id = u.user_id) as total_followers
-            FROM Users u
+                (SELECT COUNT(*) FROM recipes r WHERE r.user_id = u.user_id AND r.status = 'public') as total_recipes,
+                (SELECT COUNT(*) FROM recipes r2 WHERE r2.user_id = u.user_id AND r2.status = 'public' AND MONTH(r2.created_at) = MONTH(CURRENT_DATE()) AND YEAR(r2.created_at) = YEAR(CURRENT_DATE())) as new_recipes_this_month,
+                (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) as total_followers
+            FROM users u
             WHERE u.account_status = 'active'
             ORDER BY u.rank_point DESC
-            LIMIT ?
+            LIMIT ${parseInt(limit) || 10}
         `;
-        const [rows] = await db.pool.execute(sql, [limit.toString()]);
+        const [rows] = await db.pool.execute(sql);
         return rows;
     }
 
@@ -168,9 +168,9 @@ class LeaderboardModel {
             SELECT * FROM leaderboards_history
             WHERE entity_type = ? AND rank_month = ? AND rank_year = ?
             ORDER BY rank_position ASC
-            LIMIT ?
+            LIMIT ${parseInt(limit) || 10}
         `;
-        const [rows] = await db.pool.execute(sql, [entityType, month, year, limit.toString()]);
+        const [rows] = await db.pool.execute(sql, [entityType, month, year]);
         // Parse lại snapshot_data từ JSON
         return rows.map(row => ({
             ...row,
@@ -225,16 +225,16 @@ class LeaderboardModel {
             // 3. Cập nhật Snapshot (số lượng like, cmt, follow...) của TẤT CẢ mọi người để tháng sau tính tăng trưởng
             await connection.execute(`
                 INSERT INTO monthly_snapshots (entity_id, entity_type, snapshot_month, snapshot_year, likes, comments, trusted_recipes)
-                SELECT recipe_id, 'recipe', ?, ?, like_count, comment_count, is_trusted FROM Recipes
+                SELECT recipe_id, 'recipe', ?, ?, like_count, comment_count, is_trusted FROM recipes
                 ON DUPLICATE KEY UPDATE likes = VALUES(likes), comments = VALUES(comments)
             `, [targetMonth, targetYear]);
 
             await connection.execute(`
                 INSERT INTO monthly_snapshots (entity_id, entity_type, snapshot_month, snapshot_year, followers, badges)
                 SELECT u.user_id, 'user', ?, ?, 
-                   (SELECT COUNT(*) FROM Follows WHERE following_id = u.user_id),
-                   (SELECT COUNT(*) FROM User_Badges WHERE user_id = u.user_id)
-                FROM Users u
+                   (SELECT COUNT(*) FROM follows WHERE following_id = u.user_id),
+                   (SELECT COUNT(*) FROM user_badges WHERE user_id = u.user_id)
+                FROM users u
                 ON DUPLICATE KEY UPDATE followers = VALUES(followers), badges = VALUES(badges)
             `, [targetMonth, targetYear]);
 
