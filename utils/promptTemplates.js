@@ -8,7 +8,7 @@ function defaultExamples() {
     },
     {
       user: 'Cho tôi công thức món canh dưới 10 phút không có tôm',
-      assistant: `Tôi lưu ý bạn không ăn tôm. Tôi sẽ tìm các món canh nấu nhanh dưới 10 phút và không chứa tôm cho bạn nhé.\n\n\`\`\`sql\nSELECT recipe_id, title, description, cook_time, cover_image FROM recipes WHERE status = 'public' AND title LIKE '%canh%' AND cook_time <= 10 AND recipe_id NOT IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id IN (SELECT ingredient_id FROM ingredients WHERE name LIKE '%tôm%' COLLATE utf8mb4_0900_as_ci)) LIMIT 5\n\`\`\``
+      assistant: `Tôi lưu ý bạn không ăn tôm. Tôi sẽ tìm các món canh nấu nhanh dưới 10 phút và không chứa tôm cho bạn nhé.\n\n\`\`\`sql\nSELECT recipe_id, title, description, cook_time, cover_image FROM recipes WHERE status = 'public' AND title LIKE '%canh%' AND cook_time <= 10 AND recipe_id NOT IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id IN (SELECT ingredient_id FROM ingredients WHERE name LIKE '%tôm%' COLLATE utf8mb4_general_ci)) LIMIT 5\n\`\`\``
     },
     {
       user: 'Tôi muốn tìm bài viết học thuật nào về kỹ năng áp chảo',
@@ -24,7 +24,7 @@ function defaultExamples() {
     },
     {
       user: 'Tôi muốn tìm món ăn nào healthy mà sử dụng thịt gà.',
-      assistant: `Tuyệt vời, tôi sẽ tìm cho bạn các món gà tốt cho sức khỏe nhé. Dưới đây là kết quả:\n\n\`\`\`sql\nSELECT recipe_id, title, description, total_calo, cover_image FROM recipes WHERE status = 'public' AND (total_calo < 500 OR recipe_id IN (SELECT post_id FROM tag_post WHERE post_type = 'recipe' AND tag_id IN (SELECT tag_id FROM tags WHERE name = 'healthy' OR name = 'eat clean'))) AND (recipe_id IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id IN (SELECT ingredient_id FROM ingredients WHERE name LIKE '%gà%' COLLATE utf8mb4_0900_as_ci)) OR recipe_id IN (SELECT post_id FROM tag_post WHERE post_type = 'recipe' AND tag_id IN (SELECT tag_id FROM tags WHERE name LIKE '%gà%' COLLATE utf8mb4_0900_as_ci))) ORDER BY total_calo ASC LIMIT 5\n\`\`\``
+      assistant: `Tuyệt vời, tôi sẽ tìm cho bạn các món gà tốt cho sức khỏe nhé. Dưới đây là kết quả:\n\n\`\`\`sql\nSELECT recipe_id, title, description, total_calo, cover_image FROM recipes WHERE status = 'public' AND (total_calo < 500 OR recipe_id IN (SELECT post_id FROM tag_post WHERE post_type = 'recipe' AND tag_id IN (SELECT tag_id FROM tags WHERE name = 'healthy' OR name = 'eat clean'))) AND (recipe_id IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id IN (SELECT ingredient_id FROM ingredients WHERE name LIKE '%gà%' COLLATE utf8mb4_general_ci)) OR recipe_id IN (SELECT post_id FROM tag_post WHERE post_type = 'recipe' AND tag_id IN (SELECT tag_id FROM tags WHERE name LIKE '%gà%' COLLATE utf8mb4_general_ci))) ORDER BY total_calo ASC LIMIT 5\n\`\`\``
     },
     {
       user: 'Tôi lỡ tay cho nhiều muối vào nồi nước dùng rồi, làm sao để chữa cháy?',
@@ -33,7 +33,7 @@ function defaultExamples() {
     // Ví dụ 4: Đang xem bài viết nhưng lại đòi đổi món (CÓ SQL)
     {
       user: 'Món gà này ngon đấy, nhưng nhà tôi hết gà rồi. Tìm cho tôi món nào làm từ thịt heo đi.',
-      assistant: `Vâng, tôi sẽ tìm cho bạn các công thức hấp dẫn được làm từ thịt heo nhé. Dưới đây là kết quả:\n\n\`\`\`sql\nSELECT recipe_id, title, description, total_calo, cover_image FROM recipes WHERE status = 'public' AND recipe_id IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id IN (SELECT ingredient_id FROM ingredients WHERE name LIKE '%heo%' COLLATE utf8mb4_0900_as_ci)) LIMIT 5\n\`\`\``
+      assistant: `Vâng, tôi sẽ tìm cho bạn các công thức hấp dẫn được làm từ thịt heo nhé. Dưới đây là kết quả:\n\n\`\`\`sql\nSELECT recipe_id, title, description, total_calo, cover_image FROM recipes WHERE status = 'public' AND recipe_id IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id IN (SELECT ingredient_id FROM ingredients WHERE name LIKE '%heo%' COLLATE utf8mb4_general_ci)) LIMIT 5\n\`\`\``
     }
   ];
 }
