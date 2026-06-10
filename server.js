@@ -86,6 +86,10 @@ app.get('/', (req, res) => {
     res.status(200).json({ message: "Chào mừng bạn đến với Backend VaoBep!" });
 });
 
+app.get('/ping', (req, res) => {
+    res.status(200).send('Server is awake');
+});
+
 app.use((req, res, next) => {
     next(new AppError(`Không tìm thấy đường dẫn ${req.originalUrl} trên máy chủ`, 404));
 });
