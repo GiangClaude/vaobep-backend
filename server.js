@@ -14,19 +14,28 @@ const errorHandler = require('./middlewares/error.middleware');
 const allowedOrigins = [
     'http://localhost:3000',      // Frontend React chạy local
     'http://127.0.0.1:3000',
-    'chrome-extension://*'         // Mở cho Extension của trình duyệt (Nếu có ID cụ thể thì điền ID vào)
+    'chrome-extension://*', 
+    'https://vaobep-frontend.vercel.app',
+    "https://vaobep-frontend-pqrut363x-ries-projects-734de8b0.vercel.app",
 ];
+
+// app.use(cors({
+//     origin: function (origin, callback) {
+//         // Cho phép các request không có origin (ví dụ: mobile app, postman, curl) hoặc origin hợp lệ
+//         if (!origin || allowedOrigins.some(o => origin.match(new RegExp(o.replace('*', '.*'))))) {
+//             callback(null, true);
+//         } else {
+//             callback(new Error('Not allowed by CORS'));
+//         }
+//     },
+//     credentials: true // Cho phép gửi cookie/token
+// }));
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Cho phép các request không có origin (ví dụ: mobile app, postman, curl) hoặc origin hợp lệ
-        if (!origin || allowedOrigins.some(o => origin.match(new RegExp(o.replace('*', '.*'))))) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
+        callback(null, true);
     },
-    credentials: true // Cho phép gửi cookie/token
+    credentials: true
 }));
 
 // Sử dụng express.json() để parse body của request dưới dạng JSON
