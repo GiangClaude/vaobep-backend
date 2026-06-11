@@ -57,6 +57,9 @@ router.delete('/delete/:articleId',
 router.get('/', articleController.getPublicArticles); // Xem danh sách bài viết public
 // Bài viết nổi bật
 router.get('/featured', articleController.getFeaturedArticles);
+
+router.get('/user/:userId', articleController.getUserArticles);
+
 router.get('/:articleId', articleController.getArticleById); // Xem chi tiết 1 bài viết
 
 

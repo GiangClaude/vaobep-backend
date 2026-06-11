@@ -1,14 +1,14 @@
 const db = require('../config/db'); 
 // 2. Định nghĩa pool bằng cách lấy từ đối tượng db
 const pool = db.pool;
-const {DEFAULT_AVATAR_IMG} = require("../config/constants")
+const {DEFAULT_AVATAR_IMG, DEFAULT_COVER_IMG} = require("../config/constants")
 
 class User {
     //Create user cho user đăng ký
     static async create(name, email, passwordHash, otp, otpExpires) {
         const [result] = await pool.execute(
-            'INSERT INTO users (full_name, email, password, avatar, account_status, verification_otp, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [name, email, passwordHash, DEFAULT_AVATAR_IMG, 'pending', otp, otpExpires]
+            'INSERT INTO users (full_name, email, password, avatar, cover_image, account_status, verification_otp, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [name, email, passwordHash, DEFAULT_AVATAR_IMG, DEFAULT_COVER_IMG, 'pending', otp, otpExpires]
         );
         return result.insertId;
     }
@@ -43,7 +43,8 @@ class User {
                 u.user_id, 
                 u.email, 
                 u.full_name, 
-                u.avatar, 
+                u.avatar,
+                u.cover_image, 
                 u.role, 
                 u.bio, 
                 u.points,
@@ -51,7 +52,7 @@ class User {
                 u.created_at,
                -- Đếm số công thức (có thể thêm điều kiện status = 'public' nếu muốn)
                 (SELECT COUNT(*) FROM recipes r WHERE r.user_id = u.user_id) as recipes_count,
-                
+                (SELECT COUNT(*) FROM article_posts a WHERE a.user_id = u.user_id) as articles_count,
                 -- Đếm số người theo dõi
                 (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) as followers_count,
                 
@@ -71,13 +72,15 @@ class User {
             id: user.user_id,
             fullName: user.full_name,
             email: user.email,
-            avatar: user.avatar || 'default.png', // Xử lý fallback ở backend hoặc frontend đều được
+            avatar: user.avatar || DEFAULT_AVATAR_IMG, // Xử lý fallback ở backend hoặc frontend đều được
+            coverImage: user.cover_image || DEFAULT_COVER_IMG,
             bio: user.bio,
             role: user.role, // 'user', 'vip', 'pro'
             points: user.points,
             isCheckedIn: !!user.is_checked_in,
             stats: {
                 recipes: user.recipes_count || 0,
+                articles: user.articles_count || 0,
                 saved: user.saved_count || 0,
                 followers: user.followers_count || 0
             },
@@ -89,7 +92,7 @@ class User {
     static async findByIdForAdmin(id) {
         const sql = `
             SELECT 
-                u.user_id, u.email, u.full_name, u.avatar, u.role, u.bio, u.points,
+                u.user_id, u.email, u.full_name, u.avatar,u.cover_image, u.role, u.bio, u.points,
                 u.account_status, u.created_at,
                 (SELECT COUNT(*) FROM recipes r WHERE r.user_id = u.user_id) as recipes_count,
                 (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) as followers_count,
@@ -107,7 +110,8 @@ class User {
             id: user.user_id,
             fullName: user.full_name,
             email: user.email,
-            avatar: user.avatar || 'default.png',
+            avatar: user.avatar || DEFAULT_AVATAR_IMG, 
+            coverImage: user.cover_image || DEFAULT_COVER_IMG,
             bio: user.bio,
             role: user.role, 
             points: user.points,
@@ -128,13 +132,14 @@ class User {
                     u.user_id, 
                     u.full_name, 
                     u.avatar, 
+                    u.cover_image,
                     u.role, 
                     u.bio, 
                     u.account_status,
                     u.created_at,
                     -- Đếm số công thức PUBLIC
                     (SELECT COUNT(*) FROM recipes r WHERE r.user_id = u.user_id AND r.status = 'public') as recipes_count,
-                    
+                    (SELECT COUNT(*) FROM article_posts a WHERE a.user_id = u.user_id AND a.status = 'public') as articles_count,
                     -- Đếm người theo dõi
                     (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.user_id) as followers_count,
                     
@@ -158,13 +163,15 @@ class User {
             return {
                 id: user.user_id,
                 fullName: user.full_name,
-                avatar: user.avatar || 'default.png',
+                avatar: user.avatar || DEFAULT_AVATAR_IMG, 
+                coverImage: user.cover_image || DEFAULT_COVER_IMG,
                 bio: user.bio,
                 role: user.role,
                 // [MỚI] Trả về trạng thái follow
                 isFollowing: !!user.is_following, 
                 stats: {
                     recipes: user.recipes_count || 0,
+                    articles: user.articles_count || 0,
                     followers: user.followers_count || 0,
                     following: user.following_count || 0
                 },
@@ -315,6 +322,7 @@ class User {
                     u.full_name, 
                     u.email, 
                     u.avatar, 
+                    u.cover_image,
                     u.bio, 
                     u.created_at,
                     COUNT(f.follower_id) as followers_count,
@@ -362,6 +370,8 @@ class User {
             const updates = [];
             const values = [];
 
+            console.log("User update Profile: ", data);
+
             // Kiểm tra từng trường, nếu có dữ liệu thì push vào mảng updates
             if (data.fullName !== undefined) {
                 updates.push("full_name = ?");
@@ -375,14 +385,17 @@ class User {
 
             if (data.avatar !== undefined) {
                 let avatarUrl = data.avatar;
-                
-                // Nếu Frontend gửi lên null, hoặc chuỗi rỗng (User muốn xóa ảnh) -> Ép về Default
-                if (!avatarUrl || String(avatarUrl).trim() === '') {
-                    avatarUrl = DEFAULT_AVATAR_IMG;
-                }
-
+                if (!avatarUrl || String(avatarUrl).trim() === '') avatarUrl = DEFAULT_AVATAR_IMG;
                 updates.push("avatar = ?");
                 values.push(avatarUrl);
+            }
+
+            // THÊM BLOCK NÀY: Xử lý coverImage
+            if (data.coverImage !== undefined) {
+                let coverUrl = data.coverImage;
+                if (!coverUrl || String(coverUrl).trim() === '') coverUrl = DEFAULT_COVER_IMG;
+                updates.push("cover_image = ?");
+                values.push(coverUrl);
             }
 
             // Luôn cập nhật thời gian update

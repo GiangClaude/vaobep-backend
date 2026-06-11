@@ -82,6 +82,15 @@ const getSavedArticles = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, 'Lấy danh sách bài viết đã lưu thành công', articlesWithDetails, paginationHelper.createPagination(page, limit, totalItems));
 });
 
+const getUserArticles = asyncHandler(async (req, res) => {
+    const { userId } = req.params; // Lấy ID của người tác giả từ URL
+    const currentUserId = getUserIdFromToken(req); // Xem ai đang truy cập (có thể null nếu khách)
+    
+    const { articlesWithDetails, page, limit, totalItems } = await ArticleService.getUserPublicArticles(userId, currentUserId, req.query);
+
+    sendResponse(res, 200, true, 'Thành công', articlesWithDetails, paginationHelper.createPagination(page, limit, totalItems));
+});
+
 module.exports = {
     createArticle,
     updateArticle,
@@ -90,5 +99,6 @@ module.exports = {
     getFeaturedArticles,
     getOwnerArticles,
     getArticleById,
-    getSavedArticles
+    getSavedArticles,
+    getUserArticles
 };

@@ -311,6 +311,49 @@ class ArticleService {
 
         return { articlesWithDetails, page, limit, totalItems };
     }
+
+     async getUserPublicArticles(targetUserId, currentUserId, query) {
+        const page = parseInt(query.page) || 1;
+        const limit = parseInt(query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // 1. Kiểm tra User tồn tại và Role của họ
+        const [users] = await db.pool.execute('SELECT role FROM users WHERE user_id = ?', [targetUserId]);
+        if (users.length === 0) {
+            throw new AppError('Người dùng không tồn tại!', 404);
+        }
+
+        const targetRole = users[0].role;
+        // Nếu user thường không có chức năng viết bài, trả về mảng rỗng luôn cho nhẹ DB
+        if (targetRole !== 'pro' && targetRole !== 'admin') {
+            return { articlesWithDetails: [], page, limit, totalItems: 0 };
+        }
+
+        // 2. Lấy data từ DB
+        const [articles, totalItems] = await Promise.all([
+            ArticleModel.getPublicArticlesByUserId(targetUserId, limit, offset),
+            ArticleModel.countPublicArticlesByUserId(targetUserId)
+        ]);
+
+        // 3. Format dữ liệu (Gắn tags)
+        const articlesWithDetails = await Promise.all(articles.map(async (article) => {
+            const tags = await TagModel.getTagsByPostId(article.article_id);
+            return { ...article, tags };
+        }));
+
+        // 4. Nếu người xem đang đăng nhập, kiểm tra xem họ đã tim/lưu bài này chưa
+        if (currentUserId && articlesWithDetails.length > 0) {
+            const postIds = articlesWithDetails.map(a => a.article_id);
+            const interactionStates = await InteractionModel.getBatchInteractionState(currentUserId, postIds, 'article');
+            articlesWithDetails.forEach(article => {
+                const state = interactionStates[article.article_id];
+                article.is_liked = state ? state.liked : false;
+                article.is_saved = state ? state.saved : false;
+            });
+        }
+
+        return { articlesWithDetails, page, limit, totalItems };
+    }
 }
 
 module.exports = new ArticleService();

@@ -319,6 +319,33 @@ const ArticleModel = {
         return rows;
     },
 
+    // Thêm hàm lấy bài viết public của một user cụ thể
+    getPublicArticlesByUserId: async (userId, limit, offset) => {
+        const query = `
+            SELECT a.article_id, a.title, a.description, a.cover_image, a.created_at, 
+                   a.comment_count, a.read_time, a.like_count,
+                   u.full_name as author_name, u.avatar as author_avatar, u.user_id as author_id
+            FROM article_posts a
+            JOIN users u ON a.user_id = u.user_id
+            WHERE a.user_id = ? AND a.status = 'public'
+            ORDER BY a.created_at DESC
+            LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}
+        `;
+        const [rows] = await pool.execute(query, [userId]);
+        return rows;
+    },
+
+    // Thêm hàm đếm tổng số bài public của user để phân trang
+    countPublicArticlesByUserId: async (userId) => {
+        const query = `
+            SELECT COUNT(*) as total 
+            FROM article_posts 
+            WHERE user_id = ? AND status = 'public'
+        `;
+        const [rows] = await pool.execute(query, [userId]);
+        return rows[0].total;
+    },
+
     // 6. Xóa bài viết
     deleteById: async (articleId) => {
         const query = `DELETE FROM article_posts WHERE article_id = ?`;

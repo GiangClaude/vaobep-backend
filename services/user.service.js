@@ -6,7 +6,7 @@ const db = require('../config/db');
 const AppError = require('../utils/AppError');
 
 const { deleteCloudinaryImage } = require('../utils/cloudinary');
-const { DEFAULT_AVATAR_IMG } = require('../config/constants');
+const { DEFAULT_AVATAR_IMG, DEFAULT_COVER_IMG} = require('../config/constants');
 
 class UserService {
     /**
@@ -106,14 +106,22 @@ class UserService {
             }
         }
 
-        if (updateData.avatar !== undefined) {
+        if (updateData.avatar !== undefined || updateData.coverImage !== undefined) {
             const oldUser = await UserModel.findById(userId);
             
-            // Nếu User có ảnh cũ, và ảnh cũ KHÔNG phải mặc định
-            if (oldUser && oldUser.avatar && oldUser.avatar !== DEFAULT_AVATAR_IMG) {
-                // Kiểm tra xem User gửi lên link mới hoặc rỗng ("")
-                if (updateData.avatar !== oldUser.avatar) {
-                    deleteCloudinaryImage(oldUser.avatar); // Quét sạch ảnh cũ
+            if (oldUser) {
+                // Xử lý xóa Avatar cũ
+                if (updateData.avatar !== undefined && oldUser.avatar && oldUser.avatar !== DEFAULT_AVATAR_IMG) {
+                    if (updateData.avatar !== oldUser.avatar) {
+                        deleteCloudinaryImage(oldUser.avatar);
+                    }
+                }
+                
+                // Xử lý xóa Cover Image cũ
+                if (updateData.coverImage !== undefined && oldUser.coverImage && oldUser.coverImage !== DEFAULT_COVER_IMG) {
+                    if (updateData.coverImage !== oldUser.coverImage) {
+                        deleteCloudinaryImage(oldUser.coverImage);
+                    }
                 }
             }
         }

@@ -38,8 +38,13 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     if (bio !== undefined) {
         updateData.bio = bio;
     }
-    if (req.file) {
-        updateData.avatar = req.file.filename;
+    if (req.files) {
+        if (req.files['avatar']) {
+            updateData.avatar = req.files['avatar'][0].path; // Lấy tên file avatar
+        }
+        if (req.files['cover_image']) {
+            updateData.coverImage = req.files['cover_image'][0].path; // Lấy tên file cover_image
+        }
     }
 
     const updatedUser = await UserService.updateUserProfile(userId, updateData);

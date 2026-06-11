@@ -53,7 +53,7 @@ const createUploader = (entityConfig) => {
 };
 
 // 4. Khai báo các module Upload cụ thể (Giữ nguyên)
-const uploadAvatar = createUploader({
+const uploadUserMedia = createUploader({
     folderName: 'users',
     getId: (req) => req.user?.user_id || req.user?.id
 });
@@ -75,7 +75,7 @@ const uploadDictionary = createUploader({
 
 // Export các hàm middleware để Router sử dụng
 module.exports = {
-    uploadAvatar,
+    uploadUserMedia,
     uploadRecipe,
     uploadArticle,
     uploadDictionary
