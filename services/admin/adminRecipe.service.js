@@ -51,19 +51,9 @@ class AdminRecipeService {
 
         if (!title || !instructions) throw new AppError('Tên món và hướng dẫn không được để trống', 400);
 
-        let coverImage = 'default.png';
+        let coverImage = null;
         if (fileInfo) {
-            coverImage = fileInfo.filename;
-            const tempPath = fileInfo.path;
-            const targetDir = path.join(__dirname, '../../../public/recipes', recipeId);
-            const targetPath = path.join(targetDir, coverImage);
-            try {
-                // Di chuyển ảnh từ temp sang thư mục chính thức
-                await fs.mkdir(targetDir, { recursive: true });
-                await fs.rename(tempPath, targetPath);
-            } catch (fsError) {
-                console.warn(`[Cảnh báo] Lỗi di chuyển ảnh công thức cho recipe ${recipeId}:`, fsError.message);
-            }
+            coverImage = fileInfo.path; // Lấy link Cloudinary, bỏ hoàn toàn đoạn fs.rename
         }
 
         // Xử lý nguyên liệu

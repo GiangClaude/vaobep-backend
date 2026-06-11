@@ -43,6 +43,16 @@ function extractSQL(text) {
       if (/\bfrom\b/i.test(candidate)) rawSql = candidate;
     }
   }
+
+  if (rawSql) {
+      rawSql = rawSql.replace(/utf8mb4_0900_as_ci/gi, 'utf8mb4_general_ci');
+      rawSql = rawSql.replace(/utf8mb4_0900_ai_ci/gi, 'utf8mb4_general_ci');
+      
+      // Bonus: Đề phòng AI lỡ sinh ra collation utf8_... cũ của MySQL 5.x
+      rawSql = rawSql.replace(/utf8_unicode_ci/gi, 'utf8mb4_general_ci');
+      rawSql = rawSql.replace(/utf8_general_ci/gi, 'utf8mb4_general_ci');
+  }
+  
   if (rawSql && rawSql.endsWith(';')) rawSql = rawSql.slice(0, -1);
   return rawSql;
 }

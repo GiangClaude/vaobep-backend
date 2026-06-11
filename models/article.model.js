@@ -1,7 +1,7 @@
 const db = require('../config/db');
 const pool = db.pool;
 const { v4: uuidv4 } = require('uuid');
-
+const {DEFAULT_ARTICLE_IMG} = require("../config/constants")
 const ArticleModel = {
 // --- THÊM MỚI TỪ ĐÂY: CHO ADMIN QUẢN LÝ BÀI VIẾT TỪ ĐIỂN ---
 
@@ -76,12 +76,17 @@ const ArticleModel = {
         // Nếu chưa, hãy xóa 2 tham số đó khỏi câu query dưới đây.
         const executor = connection || pool;
         // console.log("Debug ArticleModel.create:", { articleId, userId, title, description, content, coverImage, status, readTime });
+        
+        if (!coverImage || String(coverImage).trim() === '') {
+            coverImage = DEFAULT_ARTICLE_IMG;
+        }
+
         const query = `
             INSERT INTO article_posts (article_id, user_id, title, description, content, cover_image, status, read_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const [result] = await executor.execute(query, [
-            articleId, userId, title, description || '', content, coverImage || null, status || 'draft', readTime || 1
+            articleId, userId, title, description || '', content, coverImage, status || 'draft', readTime || 1
         ]);
         return result;
     },
@@ -89,6 +94,18 @@ const ArticleModel = {
     // 2. Chuyên gia cập nhật bài viết
     update: async (connection, articleId, updateData) => {
         const executor = connection || pool;
+
+        const imgKey = updateData.hasOwnProperty('cover_image') ? 'cover_image' : 
+                       updateData.hasOwnProperty('coverImage') ? 'coverImage' : null;
+
+        // Nếu Frontend CÓ gửi yêu cầu cập nhật ảnh
+        if (imgKey) {
+            // Nếu ảnh bị rỗng (User xóa ảnh) -> Tráo thành Default
+            if (!updateData[imgKey] || String(updateData[imgKey]).trim() === '') {
+                updateData[imgKey] = DEFAULT_ARTICLE_IMG;
+            }
+        }
+
         const keys = Object.keys(updateData).filter(key => updateData[key] !== undefined);
         if (keys.length === 0) return null;
 

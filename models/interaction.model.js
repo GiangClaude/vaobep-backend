@@ -215,9 +215,9 @@ class Interaction {
             JOIN users U ON C.user_id = U.user_id
             WHERE C.post_id = ? AND C.post_type = ? AND C.parent_id IS NULL
             ORDER BY C.created_at DESC
-            LIMIT ? OFFSET ?
+            LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset)}
         `;
-        const [rows] = await pool.execute(sql, [postId, postType, limit.toString(), offset.toString()]);
+        const [rows] = await pool.execute(sql, [postId, postType]);
         
         // Đếm tổng comment để phân trang
         const [countRows] = await pool.execute(

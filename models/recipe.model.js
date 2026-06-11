@@ -10,7 +10,7 @@ const FEATURE_CRITERIA = {
     MIN_AVG_RATING: 4.0,
     TIME_FRAME_DAYS: 7 // 7 ngày gần nhất
 };
-
+const { DEFAULT_RECIPE_IMG } = require('../config/constants');
 class Recipe{
     // static async create({
     //     recipeId, 
@@ -294,10 +294,12 @@ class Recipe{
         recipeId, userId, title, description, instructions, coverImage, 
         servings, cookTime, totalCalo, ingredientsData, status, resultImages = [], tags = []
     }) {
-        // Sử dụng connection từ Service truyền vào, nếu không có thì dùng pool tạm (fallback)
         const executor = connection || pool;
 
-        // BỎ beginTransaction ở đây vì Service đã lo việc đó!
+        // 🔥 LOGIC ẢNH MẶC ĐỊNH: Bắt mọi trường hợp null, undefined, hoặc chuỗi rỗng
+        if (!coverImage || String(coverImage).trim() === '') {
+            coverImage = DEFAULT_RECIPE_IMG;
+        }
 
         // --- 1. INSERT vào bảng Recipes ---
         const sqlRecipe = `
@@ -323,9 +325,10 @@ class Recipe{
                 if (foundIng.length > 0) {
                     ingredientId = foundIng[0].ingredient_id;
                 } else {
-                    const newIngId = uuidv4()
+                    const newIngId = uuidv4();
+                    // 🛠️ Đã fix lỗi typo: tngredients -> ingredients
                     await executor.execute(
-                        `INSERT INTO tngredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
+                        `INSERT INTO ingredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
                         [newIngId, ing.name]
                     );
                     ingredientId = newIngId;
@@ -373,18 +376,26 @@ class Recipe{
             }
         }
 
-        // BỎ commit() và rollback() ở đây, Service sẽ lo!
-
         return { recipe_id: recipeId, title: title };
     }
 
 
     static async update(recipeId, recipeData, ingredientList, tagList, connection) {
-        // Nhận connection ở vị trí số 5 từ Service truyền qua
         const executor = connection || pool;
         let newIngredientsPending = false;
 
-        // BỎ beginTransaction()
+        // 🔥 LOGIC ẢNH MẶC ĐỊNH CHO UPDATE
+        // Tùy thuộc vào việc controller của bạn truyền key vào là 'coverImage' hay 'cover_image'
+        const imgKey = recipeData.hasOwnProperty('cover_image') ? 'cover_image' : 
+                       recipeData.hasOwnProperty('coverImage') ? 'coverImage' : null;
+
+        // Nếu FE có gửi yêu cầu cập nhật ảnh (imgKey != null)
+        if (imgKey) {
+            // Nếu gửi lên là null, undefined, hoặc chuỗi rỗng -> Tráo thành Default
+            if (!recipeData[imgKey] || String(recipeData[imgKey]).trim() === '') {
+                recipeData[imgKey] = DEFAULT_RECIPE_IMG;
+            }
+        }
 
         // 1. UPDATE bảng Recipes
         const recipeKeys = Object.keys(recipeData).filter(key => recipeData[key] !== undefined);
@@ -394,7 +405,8 @@ class Recipe{
             const queryValues = recipeKeys.map(key => recipeData[key]);
             queryValues.push(recipeId);
 
-            const updateQuery = `UPDATE Recipes sET ${setClauses.join(', ')} WHERE recipe_id = ?`;
+            // 🛠️ Đã fix lỗi đánh máy: sET -> SET
+            const updateQuery = `UPDATE recipes SET ${setClauses.join(', ')} WHERE recipe_id = ?`;
             await executor.execute(updateQuery, queryValues);
         }
 
@@ -473,8 +485,6 @@ class Recipe{
                 }
             }
         }
-
-        // BỎ commit(), rollback() và finally{} ở đây!
 
         return { 
             success: true, 
@@ -1097,7 +1107,7 @@ class Recipe{
                 WHERE SP.user_id = ? AND SP.post_type = 'recipe'
                 GROUP BY R.recipe_id, U.full_name, U.avatar
                 ${orderByClause}
-                IMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}
+                LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}
             `;
 
             const [recipes] = await pool.execute(sql, [userId, userId, userId]);

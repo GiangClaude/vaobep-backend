@@ -6,7 +6,9 @@ const UserModel = require('../models/user.model');
 const AppError = require('../utils/AppError');
 const { checkRecipeOwner } = require('../utils/recipe.utils');
 const { addVectorSyncJob } = require('./vectorQueue.service');
+const { deleteCloudinaryImage } = require('../utils/cloudinary');
 
+const {DEFAULT_RECIPE_IMG} = require("../config/constants")
 class RecipeService {
     async createRecipe(recipeId, userId, body, files) {
         const connection = await db.pool.getConnection(); // MỞ TRANSACTION
@@ -39,13 +41,12 @@ class RecipeService {
 
             let coverImageName = null;
             if (files && files['cover_image'] && files['cover_image'].length > 0) {
-                coverImageName = files['cover_image'][0].filename;
+                coverImageName = files['cover_image'][0].path;
             }
-
             let resultImagesList = [];
             if (files && files['result_images']) {
                 resultImagesList = files['result_images'].map(file => ({
-                    url: file.filename, 
+                    url: file.path, 
                     description: "Thành phẩm"
                 }));
             }
@@ -81,7 +82,7 @@ class RecipeService {
         try {
             await connection.beginTransaction();
 
-            let { title, description, servings, cookTime, cook_time, totalCalo, total_calo, ingredients, instructions, status, tags, steps } = body;
+            let { title, description, servings, cookTime, cook_time, totalCalo, total_calo, ingredients, instructions, status, tags, steps, cover_image } = body;
 
             const finalCookTime = cookTime || cook_time || 60;
             const finalTotalCalo = totalCalo || total_calo || 0;
@@ -105,24 +106,45 @@ class RecipeService {
                 catch (e) { throw new AppError("Dữ liệu nguyên liệu lỗi format", 400); }
             }
 
+
             const recipeData = {
                 title, description, instructions: finalInstructions, servings: finalServings,
                 cook_time: finalCookTime, total_calo: finalTotalCalo, status: status || 'draft',
+                
             };
 
-            // FIX: XÓA ẢNH CŨ KHI UPLOAD ẢNH MỚI CHỐNG TRÀN Ổ CỨNG
+            if (cover_image === "") {
+                recipeData.cover_image = ""; // Nạp chuỗi rỗng vào để Model nhận diện và đổi thành Default
+                
+                // Tiện tay xóa luôn ảnh cũ trên Cloudinary
+                const oldRecipe = await RecipeModel.findById(recipeId);
+                if (oldRecipe && oldRecipe.cover_image && oldRecipe.cover_image !== DEFAULT_RECIPE_IMG) {
+                    deleteCloudinaryImage(oldRecipe.cover_image); 
+                }
+            }
+
+            // (Giữ nguyên đoạn dưới) FIX: XÓA ẢNH CŨ KHI UPLOAD ẢNH MỚI CHỐNG TRÀN Ổ CỨNG
             if (files && files['cover_image'] && files['cover_image'].length > 0) {
                 const oldRecipe = await RecipeModel.findById(recipeId);
-                if (oldRecipe && oldRecipe.cover_image) {
-                    const oldFilePath = path.join(__dirname, '../public/recipes', recipeId.toString(), oldRecipe.cover_image);
-                    try { 
-                        await fsPromises.unlink(oldFilePath); 
-                    } catch (e) {
-                        console.warn(`[File System] Không thể xóa ảnh cover cũ của recipe ${recipeId}:`, e.message);
-                    } // Soft delete
+                if (oldRecipe && oldRecipe.cover_image && oldRecipe.cover_image !== DEFAULT_RECIPE_IMG) {
+                    deleteCloudinaryImage(oldRecipe.cover_image); 
                 }
-                recipeData.cover_image = files['cover_image'][0].filename;
+                recipeData.cover_image = files['cover_image'][0].path;
             }
+
+            // FIX: XÓA ẢNH CŨ KHI UPLOAD ẢNH MỚI CHỐNG TRÀN Ổ CỨNG
+            // if (files && files['cover_image'] && files['cover_image'].length > 0) {
+            //     const oldRecipe = await RecipeModel.findById(recipeId);
+            //     if (oldRecipe && oldRecipe.cover_image) {
+            //         const oldFilePath = path.join(__dirname, '../public/recipes', recipeId.toString(), oldRecipe.cover_image);
+            //         try { 
+            //             await fsPromises.unlink(oldFilePath); 
+            //         } catch (e) {
+            //             console.warn(`[File System] Không thể xóa ảnh cover cũ của recipe ${recipeId}:`, e.message);
+            //         } // Soft delete
+            //     }
+            //     recipeData.cover_image = files['cover_image'][0].filename;
+            // }
 
             const mappedIngredients = (ingredientsList || []).map(item => ({
                 name: item.name,
@@ -155,6 +177,11 @@ class RecipeService {
         if (!canEdit) throw new AppError('Bạn không có quyền xóa công thức này!', 403);
 
         const result = await RecipeModel.deleteById(recipeId);
+
+        if (oldRecipe && oldRecipe.cover_image && oldRecipe.cover_image !== DEFAULT_RECIPE_IMG) {
+            deleteCloudinaryImage(oldRecipe.cover_image);
+        }
+
         addVectorSyncJob(recipeId, 'recipe', 'delete');
 
         return result;

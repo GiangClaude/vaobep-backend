@@ -5,6 +5,9 @@ const authUtils = require('../utils/auth.utils');
 const db = require('../config/db');
 const AppError = require('../utils/AppError');
 
+const { deleteCloudinaryImage } = require('../utils/cloudinary');
+const { DEFAULT_AVATAR_IMG } = require('../config/constants');
+
 class UserService {
     /**
      * Update user password (authenticated user with old password)
@@ -100,6 +103,18 @@ class UserService {
         if (updateData.fullName !== undefined) {
             if (updateData.fullName.trim() === '') {
                 throw new AppError('Họ và tên không được để trống.', 400);
+            }
+        }
+
+        if (updateData.avatar !== undefined) {
+            const oldUser = await UserModel.findById(userId);
+            
+            // Nếu User có ảnh cũ, và ảnh cũ KHÔNG phải mặc định
+            if (oldUser && oldUser.avatar && oldUser.avatar !== DEFAULT_AVATAR_IMG) {
+                // Kiểm tra xem User gửi lên link mới hoặc rỗng ("")
+                if (updateData.avatar !== oldUser.avatar) {
+                    deleteCloudinaryImage(oldUser.avatar); // Quét sạch ảnh cũ
+                }
             }
         }
 

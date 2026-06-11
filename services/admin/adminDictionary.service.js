@@ -6,6 +6,9 @@ const DictionaryDishModel = require('../../models/dictionaryDish.model');
 const { addVectorSyncJob } = require('../vectorQueue.service');
 const AppError = require('../../utils/AppError');
 
+const { deleteCloudinaryImage } = require('../../utils/cloudinary');
+const { DEFAULT_DISH_IMG } = require('../../config/constants');
+
 class AdminDictionaryService {
     /**
      * Lấy danh sách từ điển
@@ -29,17 +32,8 @@ class AdminDictionaryService {
 
         let image_url = null;
         if (fileInfo) {
-            image_url = fileInfo.filename;
-            const tempPath = fileInfo.path;
-            const targetDir = path.join(__dirname, '../../../public/dictionarydish', dishId);
-            const targetPath = path.join(targetDir, image_url);
-            try {
-                // Tạo thư mục nếu chưa có và di chuyển file ảnh
-                await fs.mkdir(targetDir, { recursive: true });
-                await fs.rename(tempPath, targetPath);
-            } catch (fsError) {
-                console.warn(`[Cảnh báo] Lỗi di chuyển ảnh từ điển cho dish ${dishId}:`, fsError.message);
-            }
+            // Cloudinary trả về link nằm ở .path, không cần fs.mkdir hay fs.rename nữa!
+            image_url = fileInfo.path; 
         }
 
         await DictionaryDishModel.createDish({
@@ -71,7 +65,7 @@ class AdminDictionaryService {
      * Cập nhật món ăn
      */
     async updateDictionaryDish(id, data, fileInfo) {
-        const { original_name, english_name, description, history, country, latitude, longitude, eateries } = data;
+        const { original_name, english_name, description, history, country, latitude, longitude, eateries, image_url } = data;
 
         let updateData = {
             original_name, english_name, description, history, country,
@@ -79,7 +73,20 @@ class AdminDictionaryService {
             longitude: longitude ? parseFloat(longitude) : null
         };
 
-        if (fileInfo) updateData.image_url = fileInfo.filename;
+        const oldDish = await DictionaryDishModel.findById(id);
+        if (image_url === "") {
+            updateData.image_url = "";
+            if (oldDish && oldDish.image_url && oldDish.image_url !== DEFAULT_DISH_IMG) {
+                deleteCloudinaryImage(oldDish.image_url);
+            }
+        }
+
+         if (fileInfo) {
+            if (oldDish && oldDish.image_url && oldDish.image_url !== DEFAULT_DISH_IMG) {
+                deleteCloudinaryImage(oldDish.image_url);
+            }
+            updateData.image_url = fileInfo.path;
+        }
         
         // Lọc bỏ các trường undefined
         Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
@@ -107,13 +114,12 @@ class AdminDictionaryService {
      * Xóa món ăn
      */
     async deleteDictionaryDish(id) {
+        const oldDish = await DictionaryDishModel.findById(id);
+
         await DictionaryDishModel.deleteDish(id);
         
-        const targetDir = path.join(__dirname, '../../../public/dictionarydish', id);
-        try {
-            await fs.rm(targetDir, { recursive: true, force: true });
-        } catch (fsError) {
-            console.warn(`[Cảnh báo] Không thể xóa thư mục ảnh từ điển ${id}:`, fsError.message);
+        if (oldDish && oldDish.image_url && oldDish.image_url !== DEFAULT_DISH_IMG) {
+            deleteCloudinaryImage(oldDish.image_url);
         }
         
         addVectorSyncJob(id, 'dish', 'delete');

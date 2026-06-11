@@ -35,6 +35,7 @@ const createUploader = (entityConfig) => {
             // Xử lý tiền tố thông minh
             const prefix = file.fieldname.split('_')[0]; 
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+            console.log("multer: ", folderPath);
 
             return {
                 folder: folderPath,

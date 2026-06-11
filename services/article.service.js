@@ -8,7 +8,8 @@ const TagModel = require('../models/tag.model');
 const InteractionModel = require('../models/interaction.model');
 const RecipeLinkModel = require('../models/recipe_link.model');
 const fs = require('fs'); // Giữ lại cho existsSync nếu cần, nhưng ưu tiên try-catch với promise
-
+const { deleteCloudinaryImage } = require('../utils/cloudinary');
+const { DEFAULT_ARTICLE_IMG } = require('../config/constants');
 const checkArticleOwner = async (articleId, userId) => {
     try {
         const sql = 'SELECT user_id FROM article_posts WHERE article_id = ?';
@@ -36,14 +37,14 @@ class ArticleService {
             let parsedRecipeIds = [];
             if (recipeIds) parsedRecipeIds = typeof recipeIds === 'string' ? JSON.parse(recipeIds) : recipeIds;
 
-            let coverImageName = null;
+            let coverImageUrl = null;
             if (files && files['cover_image'] && files['cover_image'].length > 0) {
-                coverImageName = files['cover_image'][0].filename;
+                coverImageUrl = files['cover_image'][0].path; 
             }
 
             await ArticleModel.create(connection, { 
                 articleId, userId, title, description, content, 
-                coverImage: coverImageName, status: status || 'draft', readTime: read_time || 1 
+                coverImage: coverImageUrl, status: status || 'draft', readTime: read_time || 1 
             });
 
             if (parsedTags.length > 0) await TagModel.addTagsToPost(articleId, 'article', parsedTags, connection);
@@ -86,20 +87,24 @@ class ArticleService {
                 throw new AppError('Bạn không có quyền chỉnh sửa bài viết này!', 403);
             }
 
-            const { title, description, content, status, read_time, recipeIds } = body;
+            const { title, description, content, status, read_time, recipeIds, cover_image } = body;
             let updateData = { title, description, content, status, read_time };
 
-            if (files && files['cover_image'] && files['cover_image'].length > 0) {
-                const newImageName = files['cover_image'][0].filename;
-                if (article.cover_image) {
-                    const oldFilePath = path.join(__dirname, '../public/articles', articleId, article.cover_image);
-                    // Dùng Promise không chặn luồng Node.js
-                    try { await fsPromises.unlink(oldFilePath); } catch (err) {
-                        console.warn(`[File System] Không thể xóa ảnh cover cũ của article ${articleId}:`, err.message);
-                    } 
+            if (cover_image === "") {
+                updateData.cover_image = "";
+                if (article.cover_image && article.cover_image !== DEFAULT_ARTICLE_IMG) {
+                    deleteCloudinaryImage(article.cover_image); // Xóa ảnh cũ
                 }
-                updateData.cover_image = newImageName;
             }
+
+            // 2. NẾU USER UPLOAD ẢNH MỚI
+            if (files && files['cover_image'] && files['cover_image'].length > 0) {
+                if (article.cover_image && article.cover_image !== DEFAULT_ARTICLE_IMG) {
+                    deleteCloudinaryImage(article.cover_image); // Xóa ảnh cũ
+                }
+                updateData.cover_image = files['cover_image'][0].path; // Dùng .path
+            }
+
 
             Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
@@ -139,16 +144,13 @@ class ArticleService {
         if (!isOwner && userRole !== 'admin') {
             throw new AppError('Bạn không có quyền xóa bài viết này!', 403);
         }
-
-        const articleDir = path.join(__dirname, '../public/articles', articleId);
-        // Dùng Promise xóa folder
-        try { 
-            await fsPromises.rm(articleDir, { recursive: true, force: true }); 
-        } catch (err) {
-            console.warn(`[File System] Không thể xóa thư mục của article ${articleId}:`, err.message);
-        }
+        const article = await ArticleModel.findById(articleId);
 
         await ArticleModel.deleteById(articleId);
+
+        if (article && article.cover_image && article.cover_image !== DEFAULT_ARTICLE_IMG) {
+            deleteCloudinaryImage(article.cover_image);
+        }
         addVectorSyncJob(articleId, 'article', 'delete');
         return true;
     }

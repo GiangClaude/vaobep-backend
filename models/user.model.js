@@ -1,14 +1,14 @@
 const db = require('../config/db'); 
 // 2. Định nghĩa pool bằng cách lấy từ đối tượng db
 const pool = db.pool;
-
+const {DEFAULT_AVATAR_IMG} = require("../config/constants")
 
 class User {
     //Create user cho user đăng ký
     static async create(name, email, passwordHash, otp, otpExpires) {
         const [result] = await pool.execute(
-            'INSERT INTO users (full_name, email, password, account_status, verification_otp, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, email, passwordHash, 'pending', otp, otpExpires]
+            'INSERT INTO users (full_name, email, password, avatar, account_status, verification_otp, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, email, passwordHash, DEFAULT_AVATAR_IMG, 'pending', otp, otpExpires]
         );
         return result.insertId;
     }
@@ -374,8 +374,15 @@ class User {
             }
 
             if (data.avatar !== undefined) {
+                let avatarUrl = data.avatar;
+                
+                // Nếu Frontend gửi lên null, hoặc chuỗi rỗng (User muốn xóa ảnh) -> Ép về Default
+                if (!avatarUrl || String(avatarUrl).trim() === '') {
+                    avatarUrl = DEFAULT_AVATAR_IMG;
+                }
+
                 updates.push("avatar = ?");
-                values.push(data.avatar);
+                values.push(avatarUrl);
             }
 
             // Luôn cập nhật thời gian update
