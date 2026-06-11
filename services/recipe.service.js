@@ -175,7 +175,7 @@ class RecipeService {
     async deleteRecipe(recipeId, userId) {
         const canEdit = await checkRecipeOwner(recipeId, userId);
         if (!canEdit) throw new AppError('Bạn không có quyền xóa công thức này!', 403);
-
+        const oldRecipe = await RecipeModel.findById(recipeId);
         const result = await RecipeModel.deleteById(recipeId);
 
         if (oldRecipe && oldRecipe.cover_image && oldRecipe.cover_image !== DEFAULT_RECIPE_IMG) {
