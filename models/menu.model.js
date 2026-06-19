@@ -124,9 +124,12 @@ class MenuModel {
         try {
             const sql = `
                 SELECT m.*, 
-                       (SELECT COUNT(md.day_id) FROM menu_days md WHERE md.menu_id = m.menu_id) as total_days
-                FROM menus m 
-                WHERE m.user_id = ? 
+                       (SELECT COUNT(md.day_id) FROM menu_days md WHERE md.menu_id = m.menu_id) as total_days,  
+                       u.avatar as author_avatar, 
+                       u.full_name as author_name,
+                       u.role as author_role
+                FROM menus m JOIN users u
+                WHERE m.user_id = ? AND m.user_id = u.user_id
                 ORDER BY m.created_at DESC
             `;
             const [rows] = await pool.execute(sql, [userId]);
@@ -280,9 +283,13 @@ class MenuModel {
         try {
             const sql = `
                 SELECT m.*, 
-                       (SELECT COUNT(md.day_id) FROM menu_days md WHERE md.menu_id = m.menu_id) as total_days
+                       (SELECT COUNT(md.day_id) FROM menu_days md WHERE md.menu_id = m.menu_id) as total_days,
+                       u.avatar as author_avatar,
+                       u.full_name as author_name,
+                       u.role as author_role
                 FROM menus m 
-                WHERE m.user_id = ? AND m.is_public = true
+                JOIN users u
+                WHERE m.user_id = ? AND m.is_public = true AND m.user_id = u.user_id
                 ORDER BY m.created_at DESC
             `;
             const [rows] = await pool.execute(sql, [userId]);
