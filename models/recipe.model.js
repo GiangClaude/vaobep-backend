@@ -414,7 +414,10 @@ class Recipe{
         await executor.execute('DELETE FROM recipe_ingredients WHERE recipe_id = ?', [recipeId]);
 
         if (ingredientList && ingredientList.length > 0) {
-            const processedIngredients = await Promise.all(ingredientList.map(async (item) => {
+            const processedIngredients = [];
+
+            // Chuyển từ Promise.all sang for...of để xử lý tuần tự, tránh lỗi Duplicate Entry khi Insert đồng thời
+            for (const item of ingredientList) {
                 const { name: ingredientName, quantity, unit: unitName } = item;
 
                 // A. Xử lý Ingredients
@@ -454,8 +457,9 @@ class Recipe{
                     unitId = newUnitId;
                 }
 
-                return { ingredientId, quantity, unitId };
-            }));
+                // Đẩy kết quả đã xử lý tuần tự vào mảng để chờ Insert Bulk
+                processedIngredients.push({ ingredientId, quantity, unitId });
+            }
 
             // C. Insert Bulk
             const ingredientPlaceholders = processedIngredients.map(() => '(?, ?, ?, ?)');

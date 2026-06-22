@@ -149,7 +149,7 @@ class RecipeService {
             const mappedIngredients = (ingredientsList || []).map(item => ({
                 name: item.name,
                 unit: item.unit, 
-                quantity: item.amount || item.quantity
+                quantity: parseFloat(item.amount || item.quantity)
             }));
 
             // TRUYỀN CONNECTION VÀO MODEL ĐỂ ĐẢM BẢO TRANSACTION
