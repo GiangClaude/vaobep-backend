@@ -354,7 +354,7 @@ class Recipe{
                 // C. Insert vào bảng liên kết Recipe_Ingredients
                 await executor.execute(
                     `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit_id) VALUES (?, ?, ?, ?)`,
-                    [recipeId, ingredientId, ing.amount || ing.quantity, unitId] 
+                    [recipeId, ingredientId, ing.quantity, unitId] 
                 );
             }
         }
@@ -396,6 +396,10 @@ class Recipe{
                 recipeData[imgKey] = DEFAULT_RECIPE_IMG;
             }
         }
+
+        // [SỬA LỖI] Bóc tách mảng ảnh ra và xóa khỏi object trước khi build SQL động
+        const resultImagesToSave = recipeData.resultImages;
+        delete recipeData.resultImages; 
 
         // 1. UPDATE bảng Recipes
         const recipeKeys = Object.keys(recipeData).filter(key => recipeData[key] !== undefined);
@@ -473,6 +477,17 @@ class Recipe{
                     VALUES ${ingredientPlaceholders.join(', ')}
                 `;
                 await executor.execute(ingredientSql, ingredientParams);
+            }
+        }
+
+        // 3. XỬ LÝ HÌNH ẢNH CỦA CÁC BƯỚC NẤU (recipe_images)
+        if (resultImagesToSave) {
+            await executor.execute('DELETE FROM recipe_images WHERE recipe_id = ?', [recipeId]);
+            if (resultImagesToSave.length > 0) {
+                const imgSql = `INSERT INTO recipe_images (img_id, recipe_id, imgLink, description) VALUES (?, ?, ?, ?)`;
+                for (const img of resultImagesToSave) {
+                    await executor.execute(imgSql, [uuidv4(), recipeId, img.url, img.description]);
+                }
             }
         }
 
@@ -595,6 +610,7 @@ class Recipe{
             // --- Query 2: Lấy thông tin Nguyên liệu ---
             const ingredientSql = `
                 SELECT 
+                    I.ingredient_id,
                     RI.quantity, 
                     I.name AS ingredient_name,
                     U.name AS unit_name,
@@ -618,7 +634,13 @@ class Recipe{
             const [tagRows] = await pool.execute(tagSql, [recipeId]);
             recipe.tags = tagRows || [];
 
+            const imgSql = `SELECT imgLink, description FROM recipe_images WHERE recipe_id = ?`;
+            const [imgRows] = await pool.execute(imgSql, [recipeId]);
+            recipe.images = imgRows || [];
+
             return recipe;
+
+
 
         } catch (error) {
             console.error('Lỗi Model (findById):', error);

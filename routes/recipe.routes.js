@@ -7,10 +7,7 @@ const { protect } = require('../middlewares/auth.middleware');
 const { v4: uuidv4 } = require('uuid');
 
 const { uploadRecipe } = require('../config/multer.config');
-const uploadRecipeImages = uploadRecipe.fields([
-  { name: 'cover_image', maxCount: 1 },
-  { name: 'result_images', maxCount: 10 }
-]);
+const uploadRecipeImages = uploadRecipe.any();
 
 // Đây là Middleware "Phát vé"
 const generateRecipeId = (req, res, next) => {
