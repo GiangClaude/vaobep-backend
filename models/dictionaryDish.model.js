@@ -175,7 +175,22 @@ const DictionaryDish = {
     deleteEateriesByDishId: async (dishId) => {
         const query = `DELETE FROM dish_eateries WHERE dish_id = ?`;
         await pool.execute(query, [dishId]);
-    }
+    },
+
+    // Lấy tọa độ trung tâm của một quốc gia
+    getCountryCoordinates: async (countryName) => {
+        if (!countryName) return null;
+        const query = `SELECT lat, lng FROM countries_coordinates WHERE country_name = ? LIMIT 1`;
+        const [rows] = await pool.execute(query, [countryName]);
+        return rows[0] || null; // Trả về { lat: ..., lng: ... }
+    }, 
+
+    getAllCountries: async () => {
+        const query = `SELECT country_name FROM countries_coordinates ORDER BY country_name ASC`;
+        const [rows] = await pool.execute(query);
+        // Trả về mảng string: ['Việt Nam', 'Thái Lan', ...]
+        return rows.map(row => row.country_name); 
+    },
     
     // --- KẾT THÚC PHẦN THÊM MỚI ---
 

@@ -6,6 +6,8 @@ const { uploadDictionary } = require('../../config/multer.config');
 
 router.use(verifyAdminMiddleware);
 
+router.get('/countries', adminDictionaryController.getCountries);
+
 router.get('/', adminDictionaryController.getDictionaryDishes);
 router.post('/', uploadDictionary.single('image_url'), adminDictionaryController.createDictionaryDish);
 router.put('/:id', uploadDictionary.single('image_url'), adminDictionaryController.updateDictionaryDish);

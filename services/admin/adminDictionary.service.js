@@ -9,6 +9,16 @@ const AppError = require('../../utils/AppError');
 const { deleteCloudinaryImage } = require('../../utils/cloudinary');
 const { DEFAULT_DISH_IMG } = require('../../config/constants');
 
+const generateRandomCoordinates = (baseLat, baseLng, offsetRange = 0.5) => {
+    // (Math.random() - 0.5) * 2 tạo ra số ngẫu nhiên từ -1 đến 1
+    const latOffset = (Math.random() - 0.5) * 2 * offsetRange;
+    const lngOffset = (Math.random() - 0.5) * 2 * offsetRange;
+    
+    return {
+        lat: parseFloat((baseLat + latOffset).toFixed(6)),
+        lng: parseFloat((baseLng + lngOffset).toFixed(6))
+    };
+};
 class AdminDictionaryService {
     /**
      * Lấy danh sách từ điển
@@ -36,12 +46,26 @@ class AdminDictionaryService {
             image_url = fileInfo.path; 
         }
 
+        let finalLat = latitude ? parseFloat(latitude) : null;
+        let finalLng = longitude ? parseFloat(longitude) : null;
+
+         // Nếu admin không nhập tọa độ, nhưng có chọn quốc gia -> Tự động random tọa độ
+        if ((!finalLat || !finalLng) && country) {
+            const countryCoords = await DictionaryDishModel.getCountryCoordinates(country);
+            if (countryCoords && countryCoords.lat && countryCoords.lng) {
+                // Sử dụng offsetRange = 0.5 (Tùy chỉnh to nhỏ dựa trên bản đồ thực tế của bạn)
+                const randomCoords = generateRandomCoordinates(countryCoords.lat, countryCoords.lng, 0.5);
+                finalLat = randomCoords.lat;
+                finalLng = randomCoords.lng;
+            }
+        }
+
         await DictionaryDishModel.createDish({
             dish_id: dishId,
             admin_id: adminId,
             original_name, english_name, description, history, country, image_url,
-            latitude: latitude ? parseFloat(latitude) : null,
-            longitude: longitude ? parseFloat(longitude) : null
+            latitude: finalLat,
+            longitude: finalLng
         });
 
         // Xử lý danh sách quán ăn
@@ -67,10 +91,28 @@ class AdminDictionaryService {
     async updateDictionaryDish(id, data, fileInfo) {
         const { original_name, english_name, description, history, country, latitude, longitude, eateries, image_url } = data;
 
+          let finalLat = latitude ? parseFloat(latitude) : null;
+        let finalLng = longitude ? parseFloat(longitude) : null;
+
+        // LOGIC TỌA ĐỘ KHI UPDATE:
+        // Nếu Admin thay đổi Quốc Gia, và không truyền lat/lng cứng xuống -> Cần random lại theo quốc gia mới
+        if ((!finalLat || !finalLng) && country && country !== oldDish.country) {
+             const countryCoords = await DictionaryDishModel.getCountryCoordinates(country);
+             if (countryCoords && countryCoords.lat && countryCoords.lng) {
+                 const randomCoords = generateRandomCoordinates(countryCoords.lat, countryCoords.lng, 0.5);
+                 finalLat = randomCoords.lat;
+                 finalLng = randomCoords.lng;
+             }
+        } else if (!finalLat || !finalLng) {
+            // Nếu không đổi quốc gia, giữ nguyên tọa độ cũ
+            finalLat = oldDish.latitude;
+            finalLng = oldDish.longitude;
+        }
+
         let updateData = {
             original_name, english_name, description, history, country,
-            latitude: latitude ? parseFloat(latitude) : null,
-            longitude: longitude ? parseFloat(longitude) : null
+            latitude: finalLat,
+            longitude: finalLng
         };
 
         const oldDish = await DictionaryDishModel.getById(id);
@@ -124,6 +166,13 @@ class AdminDictionaryService {
         
         addVectorSyncJob(id, 'dish', 'delete');
         return true;
+    }
+
+    /**
+     * Lấy danh sách quốc gia cho dropdown
+     */
+    async getCountries() {
+        return await DictionaryDishModel.getAllCountries();
     }
 }
 

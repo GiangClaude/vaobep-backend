@@ -37,4 +37,9 @@ const deleteDictionaryDish = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, 'Xóa món ăn thành công');
 });
 
-module.exports = { getDictionaryDishes, createDictionaryDish, updateDictionaryDish, deleteDictionaryDish };
+const getCountries = asyncHandler(async (req, res) => {
+    const countries = await adminDictionaryService.getCountries();
+    sendResponse(res, 200, true, 'Lấy danh sách quốc gia thành công', countries);
+});
+
+module.exports = { getDictionaryDishes, createDictionaryDish, updateDictionaryDish, deleteDictionaryDish, getCountries };
