@@ -498,7 +498,6 @@ class RecipeService {
     }
 
     async getRecentlyRecipes(category, tag, currentUserId) {
-        console.log('Recently Recipes - Category:', category, 'Tag:', tag, 'Current User ID:', currentUserId);
         const recipes = await RecipeModel.getRecentlyRecipes(category, tag, 10, currentUserId);
         if (!recipes || recipes.length === 0) throw new AppError('Không tìm thấy công thức nào gần đây', 404);
         return recipes;

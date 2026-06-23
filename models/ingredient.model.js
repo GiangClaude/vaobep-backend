@@ -3,13 +3,11 @@ const db = require('../config/db');
 const pool = db.pool;
 const { v4: uuidv4 } = require('uuid');
 class Ingredient {
-    // ... các hàm create, update cũ của bạn ...
     static async getAll() {
         const [rows] = await pool.execute('SELECT * FROM ingredients');
         return rows;
     }
 
-    // --- HÀM MỚI CHUYỂN SANG ---
     static async getByRecipeIds(recipeIds) {
         if (!recipeIds || recipeIds.length === 0) return [];
         
@@ -30,7 +28,7 @@ class Ingredient {
 
     static async getPendingIngredients(search = '') {
         let query = `
-            SELECT i.ingredient_id, i.name, i.status, c.calo_per_100g 
+            SELECT i.ingredient_id, i.name, i.status, i.category, c.calo_per_100g 
             FROM ingredients i
             LEFT JOIN caloforingredients c ON i.ingredient_id = c.ingredient_id
             WHERE i.status = 'pending'
@@ -63,6 +61,16 @@ class Ingredient {
         const [result] = await pool.execute(query, [id, calo, calo]); // Sửa db.execute -> pool.execute
         return result;
     }
+
+    static async getDistinctCategories() {
+        const query = `
+            SELECT DISTINCT category 
+            FROM ingredients 
+            WHERE category IS NOT NULL AND category != ''
+        `;
+        const [rows] = await pool.execute(query);
+        return rows.map(row => row.category); // Trả về mảng 1 chiều ['Meat', 'Vegetable',...]
+    }
     // --- THÊM MỚI TỪ ĐÂY: API CHO ADMIN CRUD ---
 
     // 4. Lấy danh sách nguyên liệu cho Admin (Có phân trang, Search, Join Calo)
@@ -71,7 +79,8 @@ class Ingredient {
         const sortMapping = {
             name: 'i.name',
             status: 'i.status',
-            calo: 'c.calo_per_100g'
+            calo: 'c.calo_per_100g',
+            category: 'i.category'
         };
 
         const allowed = Object.keys(sortMapping);
@@ -79,7 +88,7 @@ class Ingredient {
         const order = (String(sortOrder).toUpperCase() === 'ASC') ? 'ASC' : 'DESC';
 
         let query = `
-            SELECT i.ingredient_id, i.name, i.status, c.calo_per_100g 
+            SELECT i.ingredient_id, i.name, i.status, i.category, c.calo_per_100g 
             FROM ingredients i
             LEFT JOIN caloforingredients c ON i.ingredient_id = c.ingredient_id
         `;
@@ -116,9 +125,28 @@ class Ingredient {
     }
 
     // 6. Tạo nguyên liệu mới (Admin tạo thủ công)
-    static async create(id, name, status = 'approved') {
-        const query = `INSERT INTO ingredients (ingredient_id, name, status) VALUES (?, ?, ?)`;
+    static async create(id, name, status = 'approved', category = 'others') {
+        const query = `INSERT INTO ingredients (ingredient_id, name, , category) VALUES (?, ?, ?, ?)`;
         const [result] = await pool.execute(query, [id, name, status]);
+        return result;
+    }
+
+    // 7. Cập nhật thông tin cơ bản (name, category)
+    // [CẬP NHẬT] - Tạo hàm update động thay thế hàm updateName cũ
+     static async updateBasicInfo(id, name, category) {
+        // Gom các trường có dữ liệu để update (tránh ghi đè null nếu không truyền)
+        const fields = [];
+        const values = [];
+        
+        if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+        if (category !== undefined) { fields.push('category = ?'); values.push(category); }
+
+        if (fields.length === 0) return true; // Không có gì để update
+
+        const query = `UPDATE ingredients SET ${fields.join(', ')} WHERE ingredient_id = ?`;
+        values.push(id);
+        
+        const [result] = await pool.execute(query, values);
         return result;
     }
 

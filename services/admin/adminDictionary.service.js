@@ -73,7 +73,7 @@ class AdminDictionaryService {
             longitude: longitude ? parseFloat(longitude) : null
         };
 
-        const oldDish = await DictionaryDishModel.findById(id);
+        const oldDish = await DictionaryDishModel.getById(id);
         if (image_url === "") {
             updateData.image_url = "";
             if (oldDish && oldDish.image_url && oldDish.image_url !== DEFAULT_DISH_IMG) {
@@ -114,7 +114,7 @@ class AdminDictionaryService {
      * Xóa món ăn
      */
     async deleteDictionaryDish(id) {
-        const oldDish = await DictionaryDishModel.findById(id);
+        const oldDish = await DictionaryDishModel.getById(id);
 
         await DictionaryDishModel.deleteDish(id);
         

@@ -32,6 +32,7 @@ router.post('/create',
 );
 
 router.get('/', recipeController.getRecipes);
+
 router.get('/recently', recipeController.getRecentlyRecipes);
 router.get('/feature', recipeController.getFeatureRecipes);
 router.get('/owner', protect, recipeController.getOwnerRecipe);

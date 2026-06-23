@@ -5,6 +5,7 @@ const { verifyAdminMiddleware } = require('../../utils/auth.utils');
 
 router.use(verifyAdminMiddleware);
 
+router.get('/categories', adminIngredientController.getAllCategories); 
 router.get('/pending', adminIngredientController.getPendingIngredients);
 router.put('/:id/process', adminIngredientController.processIngredient);
 

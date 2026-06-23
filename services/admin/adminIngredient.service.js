@@ -4,6 +4,14 @@ const IngredientModel = require('../../models/ingredient.model');
 const AppError = require('../../utils/AppError');
 
 class AdminIngredientService {
+
+    /**
+     * [THÊM MỚI] Lấy danh sách category không trùng lặp
+     */
+    async getAllCategories() {
+        return await IngredientModel.getDistinctCategories();
+    }
+
     /**
      * Lấy danh sách nguyên liệu đang chờ duyệt
      */
@@ -14,9 +22,10 @@ class AdminIngredientService {
     /**
      * Duyệt hoặc từ chối nguyên liệu do user đề xuất
      */
-    async processIngredient(id, action, calo_per_100g) {
+    async processIngredient(id, action, calo_per_100g, category) {
         if (action === 'approve') {
             await IngredientModel.updateStatus(id, 'approved');
+            await IngredientModel.updateBasicInfo(id, undefined, category);
             if (calo_per_100g !== undefined && calo_per_100g !== null) {
                 await IngredientModel.updateCalo(id, calo_per_100g);
             }
@@ -43,13 +52,13 @@ class AdminIngredientService {
     /**
      * Admin tạo nguyên liệu mới
      */
-    async createIngredient(name, calo_per_100g, status) {
+    async createIngredient(name, calo_per_100g, status, category) {
         if (!name) throw new AppError('Tên nguyên liệu không được để trống', 400);
 
         const ingredientId = uuidv4();
         const ingStatus = status || 'approved';
 
-        await IngredientModel.create(ingredientId, name.trim(), ingStatus);
+        await IngredientModel.create(ingredientId, name.trim(), ingStatus, category);
 
         if (calo_per_100g !== undefined && calo_per_100g !== null && calo_per_100g !== '') {
             await IngredientModel.updateCalo(ingredientId, calo_per_100g);
@@ -61,8 +70,16 @@ class AdminIngredientService {
     /**
      * Cập nhật thông tin nguyên liệu
      */
-    async updateIngredient(id, name, calo_per_100g, status) {
-        if (name) await IngredientModel.updateName(id, name.trim());
+    async updateIngredient(id, name, calo_per_100g, status, category) {
+        const updateData = {};
+        const cleanName = name ? name.trim() : undefined;
+        const cleanCategory = category ? category.trim() : undefined;
+        await IngredientModel.updateBasicInfo(id, cleanName, cleanCategory);
+
+        if (Object.keys(updateData).length > 0) {
+            await IngredientModel.updateDynamicInfo(id, updateData);
+        }
+
         if (calo_per_100g !== undefined && calo_per_100g !== null && calo_per_100g !== '') {
             await IngredientModel.updateCalo(id, calo_per_100g);
         }
