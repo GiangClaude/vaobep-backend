@@ -1,7 +1,7 @@
 // ingredients.model.js
 const db = require('../config/db');
 const pool = db.pool;
-
+const { v4: uuidv4 } = require('uuid');
 class Ingredient {
     // ... các hàm create, update cũ của bạn ...
     static async getAll() {
@@ -137,6 +137,35 @@ class Ingredient {
         const [result] = await pool.execute(query, [id]);
         return result;
     }
+
+    static async findOrCreate(name, connection) {
+        const executor = connection || pool;
+        
+        // 1. Tìm xem có nguyên liệu này chưa
+        const [foundIng] = await executor.execute(
+            `SELECT ingredient_id, status FROM ingredients WHERE name = ?`, 
+            [name]
+        );
+
+        if (foundIng.length > 0) {
+            return { 
+                id: foundIng[0].ingredient_id, 
+                status: foundIng[0].status 
+            };
+        } else {
+            // 2. Chưa có thì tạo mới
+            const newId = uuidv4();
+            await executor.execute(
+                `INSERT INTO ingredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
+                [newId, name]
+            );
+            return { 
+                id: newId, 
+                status: 'pending' 
+            };
+        }
+    }
+    // --- KẾT THÚC THÊM MỚI ---
 
 }
 

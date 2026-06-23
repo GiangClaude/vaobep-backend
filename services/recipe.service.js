@@ -3,6 +3,9 @@ const fsPromises = require('fs').promises; // Dùng promises để xóa file
 const db = require('../config/db'); // Kéo db vào để dùng Transaction
 const RecipeModel = require('../models/recipe.model');
 const UserModel = require('../models/user.model');
+const IngredientModel = require('../models/ingredient.model'); 
+const UnitModel = require('../models/unit.model');
+const TagModel = require('../models/tag.model');
 const AppError = require('../utils/AppError');
 const { checkRecipeOwner } = require('../utils/recipe.utils');
 const { addVectorSyncJob } = require('./vectorQueue.service');
@@ -89,12 +92,34 @@ class RecipeService {
             // TRUYỀN CONNECTION VÀO MODEL ĐỂ ĐẢM BẢO TRANSACTION
 
             // TRUYỀN CONNECTION VÀO MODEL ĐỂ ĐẢM BẢO TRANSACTION
+            let processedIngredients = [];
+            if (ingredientsList && ingredientsList.length > 0) {
+                for (const ing of ingredientsList) {
+                    // Nhạc trưởng gọi đệ tử đi tìm hoặc tạo ID
+                    const ingredient = await IngredientModel.findOrCreate(ing.name, connection);
+                    const unitId = await UnitModel.findOrCreate(ing.unit, connection);
+                    
+                    processedIngredients.push({
+                        ingredientId: ingredient.id,
+                        unitId: unitId,
+                        quantity: parseFloat(ing.amount || ing.quantity)
+                    });
+                }
+            }
+
+            // --- 2. GỌI RECIPE MODEL (Chỉ truyền ID, bỏ Tags ra) ---
             const newRecipe = await RecipeModel.create(connection, {
                 recipeId, userId, title, description, instructions: finalInstructions,
                 coverImage: coverImageName, servings: finalServings, cookTime: finalCookTime,
-                totalCalo: finalTotalCalo, ingredientsData: ingredientsList,
-                status: body.status || 'draft', resultImages: resultImagesList, tags: finalTags
+                totalCalo: finalTotalCalo, ingredientsData: processedIngredients, 
+                status: body.status || 'draft', resultImages: resultImagesList
             });
+
+            // --- 3. XỬ LÝ TAGS BẰNG TAG MODEL ---
+            if (finalTags && finalTags.length > 0) {
+                // Tái sử dụng hàm đã có sẵn trong TagModel
+                await TagModel.addTagsToPost(recipeId, 'recipe', finalTags, connection);
+            }
 
             await connection.commit();
 
@@ -364,15 +389,36 @@ class RecipeService {
                 });
             }
 
-            const mappedIngredients = (ingredientsList || []).map(item => ({
-                name: item.name,
-                unit: item.unit, 
-                quantity: parseFloat(item.amount || item.quantity)
-            }));
+            let processedIngredients = [];
+            let newIngredientsPending = false;
+            if (ingredientsList && ingredientsList.length > 0) {
+                for (const item of ingredientsList) {
+                    const { name: ingredientName, amount, unit: unitName } = item;
+                    
+                    // Nhạc trưởng gọi tìm ID
+                    const ingredient = await IngredientModel.findOrCreate(ingredientName, connection);
+                    const unitId = await UnitModel.findOrCreate(unitName, connection);
+                    
+                    if (ingredient.status === 'pending') {
+                        newIngredientsPending = true;
+                    }
 
-            console.log("RecipeService: ", recipeData);
+                    processedIngredients.push({
+                        ingredientId: ingredient.id,
+                        unitId: unitId,
+                        quantity: parseFloat(amount)
+                    });
+                }
+            }
             // TRUYỀN CONNECTION VÀO MODEL ĐỂ ĐẢM BẢO TRANSACTION
-            const result = await RecipeModel.update(recipeId, recipeData, mappedIngredients, finalTags, connection);
+            const result = await RecipeModel.update(recipeId, recipeData, processedIngredients, connection);
+            result.notification = newIngredientsPending ? 'Nguyên liệu mới đang chờ duyệt.' : null;
+
+            if (finalTags !== null) {
+                // Tái sử dụng hàm updateTagsForPost cực xịn bạn đã có sẵn
+                // Hàm này tự động XÓA tag cũ và INSERT tag mới
+                await TagModel.updateTagsForPost(recipeId, 'recipe', finalTags, connection);
+            }
 
             await connection.commit();
 
