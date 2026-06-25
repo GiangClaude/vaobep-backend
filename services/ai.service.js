@@ -208,11 +208,69 @@ async function generateSummary(contextText) {
     });
 }
 
+// BẮT ĐẦU ĐOẠN THÊM MỚI (Cho chức năng phân tích bài đăng - Tag & Calo)
+async function analyzePostContent(postData, availableTags) {
+    const { title, description, ingredients, instructions } = postData;
+    
+    // 1. Tạo chuỗi danh sách tag để đưa vào Prompt
+    const tagsString = availableTags.join(', ');
+
+    // 2. Xây dựng System Instruction cực kỳ khắt khe
+    const systemInstruction = `Bạn là một Chuyên gia dinh dưỡng và Quản lý nội dung ẩm thực.
+NHIỆM VỤ: Đọc thông tin bài đăng về món ăn, sau đó đánh giá xem thông tin có đủ để tính calo không. Nếu đủ, hãy tính tổng calo, chia nhỏ thành phần, và chọn tối đa 5 Tags phù hợp nhất.
+
+LUẬT BẮT BUỘC (TUYỆT ĐỐI TUÂN THỦ):
+1. KIỂM TRA ĐẦU VÀO: Nếu người dùng không cung cấp nguyên liệu (ingredients) hoặc cách làm cụ thể, BẠN KHÔNG ĐƯỢC PHÉP tự bịa ra nguyên liệu để tính toán. Hãy lập tức trả về "is_sufficient": false.
+2. CHỈ ĐƯỢC CHỌN TAG TỪ DANH SÁCH SAU: [${tagsString}]. Tuyệt đối không tự tạo tag ngoài danh sách này.
+3. TRẢ VỀ JSON THUẦN TÚY: Chỉ trả về định dạng JSON, không kèm bất kỳ văn bản giải thích nào ở ngoài cấu trúc JSON.
+
+CẤU TRÚC JSON BẮT BUỘC TRẢ VỀ:
+{
+  "is_sufficient": boolean (true nếu đủ thông tin nguyên liệu, false nếu không đủ),
+  "message": "Thông báo ngắn gọn (VD: Phân tích thành công / Không đủ thông tin nguyên liệu...)",
+  "suggested_tags": ["tag1", "tag2"], (Rỗng nếu is_sufficient = false)
+  "total_calories": number, (Bằng 0 nếu is_sufficient = false)
+  "calorie_breakdown": [ (Rỗng nếu is_sufficient = false)
+    {"item": "Tên nguyên liệu/Nhóm", "calories": number}
+  ],
+  "reasoning": "Giải thích ngắn gọn tại sao tính ra calo như vậy dựa trên phương pháp chế biến và nguyên liệu.",
+  "disclaimer": "Lưu ý: Lượng calo do AI ước tính dựa trên nguyên liệu cơ bản và chỉ mang tính tham khảo."
+}`;
+
+    // 3. Gom dữ liệu người dùng gửi vào nội dung user
+    const userContent = `
+        Tên món: ${title || 'Không có'}
+        Mô tả: ${description || 'Không có'}
+        Nguyên liệu: ${ingredients || 'Không có'}
+        Cách làm: ${instructions || 'Không có'}
+    `;
+
+    const contents = [{ role: 'user', parts: [{ text: userContent }] }];
+
+    // 4. Gọi LLM với temperature thấp (0.1) để đảm bảo độ chính xác của JSON và logic tính toán
+    const aiText = await llmProvider.callGemini(contents, systemInstruction, { 
+        model: process.env.EXTENSION_GEMINI_MODEL || 'gemini-2.5-flash', // Dùng flash thường cho tính toán tốt hơn flash-lite
+        temperature: 0.1 
+    });
+
+    // 5. Làm sạch chuỗi kết quả (Xóa block markdown ```json) giống hàm generateMenuWithRAG
+    const cleanJson = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    try {
+        return JSON.parse(cleanJson);
+    } catch (error) {
+        console.error("Lỗi parse JSON từ AI phân tích bài viết:", aiText);
+        throw new Error("AI trả về sai định dạng dữ liệu.");
+    }
+}
+// KẾT THÚC ĐOẠN THÊM MỚI
+
 const clearChatHistory = async (sessionId, userId) => {
     await aiHistory.clearHistory(sessionId, userId);
 };
 
 module.exports = { 
   generateResponse, logSqlExecution, getEmbedding, 
-  clearChatHistory, analyzeMenuWithAI, generateMenuWithRAG, generateSummary
+  clearChatHistory, analyzeMenuWithAI, generateMenuWithRAG, generateSummary,
+  analyzePostContent
 };

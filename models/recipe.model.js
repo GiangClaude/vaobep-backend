@@ -324,7 +324,6 @@ class Recipe{
             );
 
             if (ingredientPlaceholders.length > 0) {
-                console.log("RecipeModel: ", ingredientParams);
                 const ingredientSql = `
                     INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit_id) 
                     VALUES ${ingredientPlaceholders.join(', ')}
@@ -422,7 +421,6 @@ class Recipe{
      */
     static async findById(recipeId) {
         if (!recipeId) {
-            console.log("RecipeModel: Không có recipeId");
             return null;
         }
 

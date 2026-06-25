@@ -72,10 +72,39 @@ const summarizeContext = asyncHandler(async (req, res) => {
     return sendResponse(res, 200, true, null, { data: summary });
 });
 
+// BẮT ĐẦU ĐOẠN THÊM MỚI (Controller nhận Request phân tích bài đăng)
+const suggestPostTagsAndCalo = asyncHandler(async (req, res) => {
+    const { title, description, ingredients, instructions } = req.body;
+
+    // Kiểm tra tối thiểu phải có tiêu đề hoặc nguyên liệu
+    if (!title && !ingredients) {
+        throw new AppError('Vui lòng cung cấp ít nhất Tên món hoặc Nguyên liệu để AI phân tích.', 400);
+    }
+
+    // Đảm bảo cachedTags đã được load (tái sử dụng logic cũ)
+    if (!cachedTags) {
+        try {
+            cachedTags = await fetchAllTagsFromDB();
+        } catch (e) {
+            cachedTags = [];
+        }
+    }
+
+    // Gói dữ liệu
+    const postData = { title, description, ingredients, instructions };
+
+    // Gọi Service xử lý
+    const aiResult = await aiService.analyzePostContent(postData, cachedTags);
+
+    // Trả kết quả về cho Frontend
+    return sendResponse(res, 200, true, 'Phân tích hoàn tất', { data: aiResult });
+});
+// KẾT THÚC ĐOẠN THÊM MỚI
+
 const clearHistory = asyncHandler(async (req, res) => {
     const { sessionId, userId } = req.body;
     if (sessionId || userId) await aiService.clearChatHistory(sessionId, userId);
     return sendResponse(res, 200, true, 'Đã xóa lịch sử', null);
 });
 
-module.exports = { handleChat, summarizeContext, clearHistory };
+module.exports = { handleChat, summarizeContext, clearHistory, suggestPostTagsAndCalo };

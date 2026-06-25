@@ -65,7 +65,8 @@ const getReplies = asyncHandler(async (req, res) => {
 
 const ratePost = asyncHandler(async (req, res) => {
     const userId = req.user.user_id;
-    const { postId, postType, score } = req.body;
+    const { postId, score, postType } = req.body;
+    console.log("InterCon: ", userId, postId, postType, score, req.body);
 
     const result = await InteractionService.ratePost(userId, postId, postType, score);
     sendResponse(res, 200, true, 'Đánh giá thành công', result);

@@ -13,7 +13,6 @@ class InteractionService {
     async toggleLike(userId, postId, postType) {
         const validation = validateInteractionInput({ postId, postType });
         if (!validation.valid) throw new AppError(validation.message, 400);
-    console.log("Received toggleLike request:", { userId, postId, postType }); // Debug log
 
         const connection = await db.pool.getConnection();
         try {
@@ -128,6 +127,7 @@ class InteractionService {
     }
 
     async ratePost(userId, postId, postType, score) {
+        console.log("postType: ", postType);
         if (!this._isValidPostType(postType)) throw new AppError('postType không hợp lệ', 400);
         if (!score || score < 1 || score > 5) throw new AppError('Điểm đánh giá phải từ 1 đến 5', 400);
         const connection = await db.pool.getConnection();

@@ -46,7 +46,6 @@ const getRecipes = asyncHandler(async (req, res) => {
 
 const getRecentlyRecipes = asyncHandler(async (req, res) => {
     const currentUserId = getUserIdFromToken(req);
-    console.log('Current User ID:', currentUserId);
     const recipes = await RecipeService.getRecentlyRecipes(req.query.category, req.query.tag, currentUserId);
     sendResponse(res, 200, true, 'Lấy danh sách thành công', recipes);
 });

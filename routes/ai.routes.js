@@ -13,4 +13,6 @@ router.post('/summarize', rateLimit.perUserLimit, aiController.summarizeContext)
 // 3. Endpoint Xóa lịch sử
 router.delete('/history', aiController.clearHistory);
 
+router.post('/analyze-post', aiController.suggestPostTagsAndCalo);
+
 module.exports = router;
