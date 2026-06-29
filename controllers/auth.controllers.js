@@ -18,31 +18,6 @@ const login = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, 'Login successful', { token: result.token, user: result.user });
 });
 
-// const protect = asyncHandler(async (req, res, next) => {
-//     let token;
-//     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-//         token = req.headers.authorization.split(' ')[1];
-
-//         const decoded = authUtils.verifyToken(token);
-//         if (!decoded) {
-//             throw new AppError('Not authorized, token failed', 401);
-//         }
-
-//         const fetchedUser = await UserModel.findAuth(decoded.id);
-//         req.user = Array.isArray(fetchedUser) ? fetchedUser[0] : fetchedUser;
-        
-//         if (!req.user) {
-//             throw new AppError('User không còn tồn tại', 401);
-//         }
-
-//         return next();
-//     }
-
-//     if (!token) {
-//         throw new AppError('Not authorized, no token', 401);
-//     }
-// });
-
 const verifyOTP = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
     await AuthService.verifyOTP(email, otp);
@@ -68,15 +43,7 @@ const requestPasswordReset = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, result.message || 'Password reset OTP sent successfully');
 });
 
-// // Xử lý đổi mật khẩu cho user đang đăng nhập bằng mật khẩu cũ
-// const changePasswordAuth = asyncHandler(async (req, res) => {
-//     const { oldPassword, newPassword } = req.body;
-//     const userId = req.user.user_id || req.user.id;
-//     const result = await AuthService.changePasswordAuth(userId, oldPassword, newPassword);
-//     res.status(200).json(result);
-// });
-
-// Đổi mật khẩu khi đã quên mật khẩu cũ => sử dụng hàm resetPassword
+// Quên mật khẩu
 const resetPassword = asyncHandler(async (req, res) => {
     const { email, otp, newPassword } = req.body;
     const result = await AuthService.resetPassword(email, otp, newPassword);
@@ -86,11 +53,9 @@ const resetPassword = asyncHandler(async (req, res) => {
 module.exports = {
     register,
     login,
-    // protect, 
     verifyOTP,
     activateAccount,
     resendOTP,
     requestPasswordReset,
-    // changePasswordAuth,
     resetPassword
 };

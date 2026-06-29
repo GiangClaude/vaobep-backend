@@ -11,7 +11,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// 2. Middleware kiểm tra định dạng file (Giữ nguyên của bạn)
+// 2. Middleware kiểm tra định dạng file
 const fileFilter = (req, file, cb) => {
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     if (allowedMimeTypes.includes(file.mimetype)) {
@@ -26,21 +26,17 @@ const createUploader = (entityConfig) => {
     const storage = new CloudinaryStorage({
         cloudinary: cloudinary,
         params: async (req, file) => {
-            // Lấy ID động
             const id = entityConfig.getId(req) || 'temp';
             
-            // Tạo thư mục trên Cloudinary giống hệt cấu trúc cũ của bạn (ví dụ: vaobep/user/1)
             const folderPath = `vaobep/${entityConfig.folderName}/${id}`;
             
-            // Xử lý tiền tố thông minh
             const prefix = file.fieldname.split('_')[0]; 
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-            console.log("multer: ", folderPath);
 
             return {
                 folder: folderPath,
-                allowed_formats: ['jpg', 'png', 'jpeg', 'webp'], // Thay thế fileFilter bên dưới nhưng khai báo thêm cho chắc chắn
-                public_id: `${prefix}_${uniqueSuffix}` // Tên file (không cần đuôi mở rộng vì Cloudinary tự lo)
+                allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+                public_id: `${prefix}_${uniqueSuffix}`
             };
         },
     });
@@ -73,7 +69,6 @@ const uploadDictionary = createUploader({
     getId: (req) => req.dishId || req.params.id
 });
 
-// Export các hàm middleware để Router sử dụng
 module.exports = {
     uploadUserMedia,
     uploadRecipe,

@@ -1,9 +1,8 @@
-// VỊ TRÍ: backend/controllers/admin/adminArticle.controller.js
 const adminArticleService = require('../../services/admin/adminArticle.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendResponse } = require('../../utils/responseHelper');
 
-// Controller giờ đây rất mỏng (Thin Controller), chỉ nhận Request và gọi Service
+//Lấy danh sách article
 const getArticles = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -17,6 +16,7 @@ const getArticles = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, 'Success', result.articles, { page, limit, totalItems: result.total, totalPages: result.totalPages });
 });
 
+//Lấy detail
 const getAdminArticleDetail = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const article = await adminArticleService.getArticleDetail(id);
@@ -24,6 +24,7 @@ const getAdminArticleDetail = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, 'Success', article);
 });
 
+//Update trạng thái 
 const updateArticleStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -33,6 +34,7 @@ const updateArticleStatus = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, `Đã cập nhật trạng thái bài viết thành: ${newStatus}`);
 });
 
+//Xóa
 const deleteArticle = asyncHandler(async (req, res) => {
     const { id } = req.params;
     

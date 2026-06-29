@@ -39,7 +39,6 @@ const deleteArticle = asyncHandler(async (req, res) => {
 // 4. Lấy danh sách bài viết công khai
 const getPublicArticles = asyncHandler(async (req, res) => {
     const userId = getUserIdFromToken(req);
-    // console.log("controller: ", req.query);
     const { articlesWithDetails, page, limit, totalItems } = await ArticleService.getPublicArticles(req.query, userId);
 
     sendResponse(res, 200, true, "Lấy danh sách bài viết thành công", articlesWithDetails, paginationHelper.createPagination(page, limit, totalItems));
@@ -83,8 +82,8 @@ const getSavedArticles = asyncHandler(async (req, res) => {
 });
 
 const getUserArticles = asyncHandler(async (req, res) => {
-    const { userId } = req.params; // Lấy ID của người tác giả từ URL
-    const currentUserId = getUserIdFromToken(req); // Xem ai đang truy cập (có thể null nếu khách)
+    const { userId } = req.params;
+    const currentUserId = getUserIdFromToken(req); 
     
     const { articlesWithDetails, page, limit, totalItems } = await ArticleService.getUserPublicArticles(userId, currentUserId, req.query);
 

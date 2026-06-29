@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/controllers/admin/adminRecipe.controller.js
 const adminRecipeService = require('../../services/admin/adminRecipe.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendResponse } = require('../../utils/responseHelper');
@@ -39,4 +38,10 @@ const updateRecipe = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, 'Cập nhật công thức thành công');
 });
 
-module.exports = { getRecipes, hideRecipe, createAdminRecipe, getRecipeDetail, updateRecipe };
+module.exports = { 
+    getRecipes, 
+    hideRecipe, 
+    createAdminRecipe, 
+    getRecipeDetail, 
+    updateRecipe 
+};

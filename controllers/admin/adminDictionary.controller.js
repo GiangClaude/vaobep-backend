@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/controllers/admin/adminDictionary.controller.js
 const adminDictionaryService = require('../../services/admin/adminDictionary.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendResponse } = require('../../utils/responseHelper');
@@ -17,7 +16,6 @@ const getDictionaryDishes = asyncHandler(async (req, res) => {
 
 const createDictionaryDish = asyncHandler(async (req, res) => {
     const adminId = req.user.id;
-    // Chuyển toàn bộ req.body và thông tin file xuống Service
     const dishId = await adminDictionaryService.createDictionaryDish(adminId, req.body, req.file);
 
     sendResponse(res, 201, true, 'Tạo món ăn thành công', { dishId });

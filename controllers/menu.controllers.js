@@ -5,9 +5,7 @@ const { sendResponse } = require('../utils/responseHelper');
 const createMenu = asyncHandler(async (req, res) => {
     const userId = req.user?.user_id; 
     const menuData = req.body;
-
     const newMenu = await MenuService.createMenu(userId, menuData);
-
     sendResponse(res, 201, true, 'Tạo thực đơn thành công!', newMenu);
 });
 

@@ -1,11 +1,8 @@
-// VỊ TRÍ: backend/middlewares/error.middleware.js
 const { sendResponse } = require('../utils/responseHelper');
 const errorHandler = (err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
     err.status = err.status || 'error';
 
-    // In lỗi ra console để dev dễ debug
-    console.error('🔥 [ERROR]', err.message);
     if (process.env.NODE_ENV !== 'production') {
         console.error(err.stack);
     }
@@ -38,7 +35,6 @@ const errorHandler = (err, req, res, next) => {
 
     const metaData = process.env.NODE_ENV === 'development' ? { stack: err.stack } : null;
 
-    // Trả về response chuẩn
    sendResponse(
         res, 
         err.statusCode, 

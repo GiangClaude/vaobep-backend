@@ -5,6 +5,7 @@ const { buildSystemInstruction } = require('../utils/promptTemplates');
 const vs = require('./vectorstore.service');
 const llmProvider = require('./llm.provider');
 const aiHistory = require('./aiHistory.service');
+const AppError = require('../utils/AppError')
 
 const LANGFUSE_BASE = process.env.LANGFUSE_BASE_URL;
 const LANGFUSE_KEY = process.env.LANGFUSE_SECRET_KEY;
@@ -81,6 +82,7 @@ async function generateResponse({ userId, message, sessionId, rules, currentCont
   let modelText;
   try {
     // SỬ DỤNG LLM PROVIDER THAY VÌ FETCH
+    console.log("Chat Prompt: ", chatHistory, " ", systemInstructionText);
     modelText = await llmProvider.callGemini(chatHistory, systemInstructionText);
   } catch (err) {
     console.error('LLM call failed:', err.message);
@@ -88,7 +90,7 @@ async function generateResponse({ userId, message, sessionId, rules, currentCont
    // Kiểm tra nếu lỗi là do hết Quota (429) của Gemini
     if (err.message.includes('429') || err.message.includes('Quota')) {
         // Ném ra AppError với message thân thiện cho user và HTTP status 429
-        throw new AppError('Hệ thống AI đang tạm thời quá tải. Bà vui lòng thử lại sau ít phút nha!', 429);
+        throw new AppError('Hệ thống AI đang tạm thời quá tải. Bạn vui lòng thử lại sau ít phút nha!', 429);
     }
     
     // Ném ra lỗi chung cho các trường hợp rớt mạng, lỗi key,...

@@ -37,12 +37,10 @@ const handleChat = asyncHandler(async (req, res) => {
     const extraRule = `\nQUAN TRỌNG: CSDL có các tag sau: [${tagListString}]. Chỉ linh hoạt dùng các tag này cho tìm kiếm SQL.`;
     const finalRules = (req.rules || '') + extraRule;
 
-    // AI Service giờ đây sẽ tự lo việc kết hợp currentContext (nếu có) vào Prompt
     const aiResult = await aiService.generateResponse({ 
         userId, message, sessionId, rules: finalRules, clientIp, userAgent, currentContext 
     });
 
-    // Nếu trả về SQL (Thường là khi không có currentContext, user muốn tìm kiếm)
     if (aiResult && aiResult.sql) {
         const sqlToRun = (req.body.sql) ? req.body.sql : aiResult.sql;
         if (sqlToRun) {
@@ -60,7 +58,6 @@ const handleChat = asyncHandler(async (req, res) => {
         return sendResponse(res, 200, true, null, { text: aiResult.text, sql: aiResult.sql, executeRecommended: true });
     }
 
-    // Trả về Text thường (Khi trả lời ngữ cảnh công thức hoặc trò chuyện thường)
     return sendResponse(res, 200, true, 'Chat thành công', { text: aiResult.text });
 });
 
@@ -72,7 +69,6 @@ const summarizeContext = asyncHandler(async (req, res) => {
     return sendResponse(res, 200, true, null, { data: summary });
 });
 
-// BẮT ĐẦU ĐOẠN THÊM MỚI (Controller nhận Request phân tích bài đăng)
 const suggestPostTagsAndCalo = asyncHandler(async (req, res) => {
     const { title, description, ingredients, instructions } = req.body;
 
@@ -99,7 +95,6 @@ const suggestPostTagsAndCalo = asyncHandler(async (req, res) => {
     // Trả kết quả về cho Frontend
     return sendResponse(res, 200, true, 'Phân tích hoàn tất', { data: aiResult });
 });
-// KẾT THÚC ĐOẠN THÊM MỚI
 
 const clearHistory = asyncHandler(async (req, res) => {
     const { sessionId, userId } = req.body;

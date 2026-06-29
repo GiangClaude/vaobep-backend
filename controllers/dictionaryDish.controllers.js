@@ -3,17 +3,15 @@ const { createPagination } = require('../utils/paginationHelper');
 const { getUserIdFromToken } = require('../utils/auth.utils');
 const asyncHandler = require('../utils/asyncHandler');
 const {sendResponse} = require('../utils/responseHelper');
+
 const getAllDishes = asyncHandler(async (req, res) => {
-    // 1. Nhận data từ request
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
 
-    // 2. Chuyển qua Service xử lý
     const { totalItems, dishes } = await DictionaryDishService.getAllDishes(page, limit, search);
     
 
-    // 3. Trả về format chuẩn
     sendResponse(res, 200, true, 'Success', { dishes, pagination: createPagination(page, limit, totalItems) });
 });
 
@@ -27,13 +25,11 @@ const getDishDetail = asyncHandler(async (req, res) => {
 });
 
 const getMapSummary = asyncHandler(async (req, res) => {
-    // Không gọi Model nữa, gọi Service
     const rows = await DictionaryDishService.getMapSummary();
     sendResponse(res, 200, true, 'Success', rows);
 });
 
 const getMapAllDishes = asyncHandler(async (req, res) => {
-    // Không gọi Model nữa, gọi Service
     const rows = await DictionaryDishService.getMapAllDishes();
     sendResponse(res, 200, true, 'Success', rows);
 });
@@ -44,7 +40,6 @@ const voteRecipeForDish = asyncHandler(async (req, res) => {
     const userId = req.user.user_id;
 
     const action = await DictionaryDishService.voteRecipeForDish(dishId, recipeId, userId);
-    console.log("DictionaryDish: ", action);
     let msg;
     if (action === 'unvoted') {
         msg = "Xóa bình chọn thành công";
@@ -54,4 +49,10 @@ const voteRecipeForDish = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, msg, action);
 });
 
-module.exports = { getAllDishes, getDishDetail, getMapSummary, getMapAllDishes, voteRecipeForDish };
+module.exports = { 
+    getAllDishes, 
+    getDishDetail, 
+    getMapSummary, 
+    getMapAllDishes, 
+    voteRecipeForDish 
+};

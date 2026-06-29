@@ -3,10 +3,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendResponse } = require('../utils/responseHelper');
 
 const getAllIngredients = asyncHandler(async (req, res) => {
-    // Controller chỉ gọi Service, không gọi Model
-    const rows = await IngredientService.getAllIngredients();
-    
-    // Chuẩn hóa định dạng trả về
+    const rows = await IngredientService.getAllIngredients();    
     sendResponse(res, 200, true, 'Success', rows);
 });
 

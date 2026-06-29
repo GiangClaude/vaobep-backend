@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/controllers/admin/adminUser.controller.js
 const adminUserService = require('../../services/admin/adminUser.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendResponse } = require('../../utils/responseHelper');
@@ -41,4 +40,10 @@ const updateUser = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, 'User updated successfully');
 });
 
-module.exports = { getUsers, toggleUserStatus, createUser, getUserDetail, updateUser };
+module.exports = { 
+    getUsers, 
+    toggleUserStatus, 
+    createUser, 
+    getUserDetail, 
+    updateUser 
+};
