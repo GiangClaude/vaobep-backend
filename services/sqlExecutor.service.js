@@ -4,7 +4,7 @@ async function execute(sql, options = {}) {
 
   console.log("=== EXECUTING DATABASE QUERY ===", sql);
   
-  const timeout = options.timeout || 2000;
+  const timeout = options.timeout || 6000;
   const maxRows = options.maxRows || 200;
 
   const pool = db.chatbotPool;
