@@ -35,7 +35,6 @@ class ExtensionService {
         // Gọi AI nhận diện tên món
         const dishName = await extensionAiService.identifyDishFromImage(base64Data);
         
-        // Truy vấn Database
         const searchTerm = `%${dishName.replace(/["']/g, '').trim()}%`; 
         const recipes = await ExtensionModel.searchRecipesByTitle(searchTerm, 3);
 

@@ -1,3 +1,4 @@
+// backend/models/extension.model.js
 const db = require('../config/db');
 
 class ExtensionModel {
@@ -7,7 +8,7 @@ class ExtensionModel {
             FROM recipes 
             WHERE status = 'public' 
             ORDER BY RAND() 
-            LIMIT LIMIT ${parseInt(limit) || 3}
+            LIMIT ${parseInt(limit) || 3} 
         `;
         const [rows] = await db.pool.execute(sql);
         return rows;
