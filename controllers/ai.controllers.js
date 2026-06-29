@@ -49,7 +49,7 @@ const handleChat = asyncHandler(async (req, res) => {
                 return sendResponse(res, 200, true, 'Validation failed', { text: aiResult.text, sql: aiResult.sql, validation });
             }
 
-            const rows = await sqlExecutor.execute(sqlToRun, { timeout: 5000, maxRows: 200 });
+            const rows = await sqlExecutor.execute(sqlToRun, { timeout: 4000, maxRows: 200 });
             try {
                 await aiService.logSqlExecution({ userId, sessionId, sql: sqlToRun, rowCount: rows.length || 0, clientIp, userAgent, retrievalCount: aiResult.retrievalCount || 0 });
             } catch (e) { }
