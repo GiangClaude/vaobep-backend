@@ -1,14 +1,5 @@
-// VỊ TRÍ TẠO FILE MỚI: backend/services/apiKey.service.js
-
 const { createClient } = require('redis');
-
-// Khởi tạo Redis client độc lập cho ApiKey Service
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redisClient = createClient({ url: redisUrl });
-
-redisClient.on('error', (err) => console.error('❌ Redis Error in API Key Service:', err.message));
-redisClient.connect().catch(() => {});
-
+const redisClient = require('../config/redis.config');
 // Lấy danh sách keys từ .env (Hỗ trợ fallback về GOOGLE_API_KEY cũ nếu quên setup)
 const rawKeys = process.env.GEMINI_API_KEYS || process.env.GOOGLE_API_KEY;
 const API_KEYS = rawKeys ? rawKeys.split(',').map(k => k.trim()).filter(Boolean) : [];

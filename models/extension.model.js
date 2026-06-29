@@ -1,4 +1,3 @@
-// backend/models/extension.model.js
 const db = require('../config/db');
 
 class ExtensionModel {

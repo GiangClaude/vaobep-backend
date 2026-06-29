@@ -1,4 +1,3 @@
-// ingredients.model.js
 const db = require('../config/db');
 const pool = db.pool;
 const { v4: uuidv4 } = require('uuid');
@@ -11,10 +10,8 @@ class Ingredient {
     static async getByRecipeIds(recipeIds) {
         if (!recipeIds || recipeIds.length === 0) return [];
         
-        // Tạo chuỗi dấu ? cho câu query IN (...)
         const placeholders = recipeIds.map(() => '?').join(',');
         
-        // Query bảng trung gian recipe_ingredients JOIN với ingredients
         const sql = `
             SELECT ri.recipe_id, i.name
             FROM recipe_ingredients ri
@@ -51,7 +48,7 @@ class Ingredient {
         return result;
     }
     
-    // 3. Cập nhật Calo (Admin sửa lại calo cho đúng trước khi duyệt)
+    // 3. Cập nhật Calo 
    static async updateCalo(id, calo) {
         const query = `
             INSERT INTO caloforingredients (ingredient_id, calo_per_100g) 
@@ -69,13 +66,11 @@ class Ingredient {
             WHERE category IS NOT NULL AND category != ''
         `;
         const [rows] = await pool.execute(query);
-        return rows.map(row => row.category); // Trả về mảng 1 chiều ['Meat', 'Vegetable',...]
+        return rows.map(row => row.category); 
     }
-    // --- THÊM MỚI TỪ ĐÂY: API CHO ADMIN CRUD ---
 
-    // 4. Lấy danh sách nguyên liệu cho Admin (Có phân trang, Search, Join Calo)
+    // 4. Lấy danh sách nguyên liệu cho Admin 
     static async getAllAdmin(limit, offset, search = '', sortKey = 'name', sortOrder = 'ASC') {
-        // Whitelist mapping from public sort keys to actual DB columns
         const sortMapping = {
             name: 'i.name',
             status: 'i.status',
@@ -105,7 +100,6 @@ class Ingredient {
         return rows;
     }
 
-    // 5. Đếm tổng số nguyên liệu cho Admin (Hỗ trợ phân trang)
     static async countAllAdmin(search = '') {
         let query = `SELECT COUNT(*) as total FROM ingredients`;
         const params = [];
@@ -119,29 +113,25 @@ class Ingredient {
         return rows[0].total;
     }
 
-    // Alias for dashboard usage
     static async countAllIngredients(search = '') {
         return await Ingredient.countAllAdmin(search);
     }
 
-    // 6. Tạo nguyên liệu mới (Admin tạo thủ công)
+    // 6. Tạo nguyên liệu mới
     static async create(id, name, status = 'approved', category = 'others') {
         const query = `INSERT INTO ingredients (ingredient_id, name, , category) VALUES (?, ?, ?, ?)`;
         const [result] = await pool.execute(query, [id, name, status]);
         return result;
     }
 
-    // 7. Cập nhật thông tin cơ bản (name, category)
-    // [CẬP NHẬT] - Tạo hàm update động thay thế hàm updateName cũ
      static async updateBasicInfo(id, name, category) {
-        // Gom các trường có dữ liệu để update (tránh ghi đè null nếu không truyền)
         const fields = [];
         const values = [];
         
         if (name !== undefined) { fields.push('name = ?'); values.push(name); }
         if (category !== undefined) { fields.push('category = ?'); values.push(category); }
 
-        if (fields.length === 0) return true; // Không có gì để update
+        if (fields.length === 0) return true;
 
         const query = `UPDATE ingredients SET ${fields.join(', ')} WHERE ingredient_id = ?`;
         values.push(id);
@@ -159,8 +149,6 @@ class Ingredient {
 
     // 8. Xóa nguyên liệu
     static async delete(id) {
-        // Lưu ý: Sẽ xảy ra lỗi SQL Error nếu nguyên liệu này đang được dùng trong recipe_ingredients
-        // Lỗi này sẽ được bắt (catch) và xử lý ở tầng Controller.
         const query = `DELETE FROM ingredients WHERE ingredient_id = ?`;
         const [result] = await pool.execute(query, [id]);
         return result;
@@ -169,7 +157,6 @@ class Ingredient {
     static async findOrCreate(name, connection) {
         const executor = connection || pool;
         
-        // 1. Tìm xem có nguyên liệu này chưa
         const [foundIng] = await executor.execute(
             `SELECT ingredient_id, status FROM ingredients WHERE name = ?`, 
             [name]
@@ -181,7 +168,6 @@ class Ingredient {
                 status: foundIng[0].status 
             };
         } else {
-            // 2. Chưa có thì tạo mới
             const newId = uuidv4();
             await executor.execute(
                 `INSERT INTO ingredients (ingredient_id, name, status) VALUES (?, ?, 'pending')`,
@@ -193,8 +179,6 @@ class Ingredient {
             };
         }
     }
-    // --- KẾT THÚC THÊM MỚI ---
-
 }
 
 module.exports = Ingredient;

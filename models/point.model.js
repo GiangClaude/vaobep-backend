@@ -6,7 +6,7 @@ class PointTransaction {
     
     // Tạo lịch sử giao dịch mới
    static async create({ userId, type, amount, relatedUserId = null, message = '' }, connection = null) {
-        const dbExec = connection || pool; // Nếu có connection thì dùng, không thì dùng pool
+        const dbExec = connection || pool;
         const sql = `
             INSERT INTO point_transactions (user_id, type, amount, related_user_id, message)
             VALUES (?, ?, ?, ?, ?)
@@ -15,7 +15,6 @@ class PointTransaction {
         return result.insertId;
     }
 
-    // Kiểm tra xem hôm nay user đã điểm danh chưa
     static async hasCheckedInToday(userId) {
         const sql = `
             SELECT transaction_id FROM point_transactions 
@@ -27,8 +26,6 @@ class PointTransaction {
         return rows.length > 0;
     }
 
-    // Lấy lịch sử giao dịch (Phân trang)
-    // filterMonth: 'YYYY-MM' hoặc null (tất cả)
     static async getHistory(userId, page = 1, limit = 10, filterMonth = null) {
         const offset = (page - 1) * limit;
         let sql = `
@@ -48,7 +45,6 @@ class PointTransaction {
 
         const [rows] = await pool.execute(sql, params);
 
-        // Đếm tổng số để phân trang
         let countSql = `SELECT COUNT(*) as total FROM point_transactions WHERE user_id = ?`;
         const countParams = [userId];
         if (filterMonth) {

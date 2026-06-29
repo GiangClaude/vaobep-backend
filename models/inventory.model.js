@@ -1,15 +1,7 @@
-// backend/models/inventory.model.js
 const db = require('../config/db');
 const pool = db.pool;
 
 class InventoryModel {
-    /**
-     * Thêm vật phẩm vào kho đồ (Nếu đã có thì cộng thêm số lượng)
-     * @param {string} userId 
-     * @param {string} itemId 
-     * @param {number} quantity 
-     * @param {object} connection - Để dùng trong Transaction
-     */
     static async addItem(userId, itemId, quantity = 1, connection = null) {
         const dbExec = connection || pool;
         const sql = `
@@ -21,11 +13,6 @@ class InventoryModel {
         return result.affectedRows > 0;
     }
 
- /**
-     * Lấy kho đồ của User kèm thông tin chi tiết vật phẩm
-     * @param {string} userId
-     * @param {string|null} itemType - Lọc theo loại vật phẩm (badge, ticket, consumable,...)
-     */
     static async getUserInventory(userId, itemType = null) {
         let sql = `
             SELECT i.item_id, i.name, i.description, i.icon_url, i.item_type, ui.quantity
@@ -35,7 +22,6 @@ class InventoryModel {
         `;
         const params = [userId];
 
-        // Nếu có truyền itemType thì thêm điều kiện lọc vào SQL
         if (itemType) {
             sql += ` AND i.item_type = ?`;
             params.push(itemType);
@@ -45,10 +31,6 @@ class InventoryModel {
         console.log(`Lấy inventory cho user ${userId} với itemType ${itemType}:`, rows);
         return rows;
     }
-    
-    /**
-     * Trừ vật phẩm khi sử dụng (Ví dụ khi dùng vé quảng bá)
-     */
     static async consumeItem(userId, itemId, quantity = 1, connection = null) {
         const dbExec = connection || pool;
         const sql = `

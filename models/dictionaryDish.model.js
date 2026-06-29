@@ -5,7 +5,6 @@ const DictionaryDish = {
     // Lấy danh sách có phân trang và tìm kiếm
     getAll: async (limit, offset, search = '', sortKey = 'created_at', sortOrder = 'DESC') => {
         const searchTerm = `%${search}%`;
-        // Map public sort keys to DB columns
         const sortMapping = {
             name: 'original_name',
             country: 'country',
@@ -37,7 +36,6 @@ const DictionaryDish = {
         return rows[0].total;
     },
 
-    // Alias for dashboard usage: count all dishes (keeps API stable)
     countAllDishes: async (search = '') => {
         const searchTerm = `%${search}%`;
         const query = `
@@ -92,7 +90,6 @@ const DictionaryDish = {
     },
 
     getFullDetail: async (id) => {
-        // 1. Lấy thông tin cơ bản của món ăn
         const [dishRows] = await pool.execute(
             `SELECT * FROM dictionary_dishes WHERE dish_id = ?`, [id]
         );
@@ -103,14 +100,8 @@ const DictionaryDish = {
         const [eateries] = await pool.execute(
             `SELECT name, address FROM dish_eateries WHERE dish_id = ?`, [id]
         );
-
-        // 3. Lấy danh sách công thức liên kết (Recipes)
-        // const recipes = await RecipeLinkModel.getRecipesByPost(id, 'dish');
-
         return { ...dish, eateries};
     },
-
-    // --- THÊM MỚI TỪ ĐÂY: API CHO ADMIN CRUD TỪ ĐIỂN MÓN ĂN ---
 
     // Tạo món ăn mới
     createDish: async (dishData) => {
@@ -149,21 +140,19 @@ const DictionaryDish = {
         return result;
     },
 
-    // Xóa món ăn (ON DELETE CASCADE sẽ tự động xóa trong bảng dish_eateries)
+    // Xóa món ăn
     deleteDish: async (dishId) => {
         const query = `DELETE FROM dictionary_dishes WHERE dish_id = ?`;
         const [result] = await pool.execute(query, [dishId]);
         return result;
     },
 
-    // Thêm các địa điểm ăn uống (Eateries) cho 1 món ăn
+    // Thêm các địa điểm ăn uống cho 1 món ăn
     addEateries: async (dishId, eateriesArray) => {
         if (!eateriesArray || eateriesArray.length === 0) return;
 
-        // eateriesArray format: [{ eatery_id, name, address, user_id (có thể null) }]
         const query = `INSERT INTO dish_eateries (eatery_id, dish_id, name, address) VALUES (?, ?, ?, ?)`;
         
-        // Chạy Promise.all để insert nhiều dòng
         const promises = eateriesArray.map(eatery => {
             return pool.execute(query, [eatery.eatery_id, dishId, eatery.name, eatery.address]);
         });
@@ -171,7 +160,7 @@ const DictionaryDish = {
         await Promise.all(promises);
     },
 
-    // Xóa toàn bộ Eateries của 1 món ăn (Dùng khi update lại danh sách quán ăn)
+    // Xóa toàn bộ Eateries của 1 món ăn
     deleteEateriesByDishId: async (dishId) => {
         const query = `DELETE FROM dish_eateries WHERE dish_id = ?`;
         await pool.execute(query, [dishId]);
@@ -182,18 +171,14 @@ const DictionaryDish = {
         if (!countryName) return null;
         const query = `SELECT lat, lng FROM countries_coordinates WHERE country_name = ? LIMIT 1`;
         const [rows] = await pool.execute(query, [countryName]);
-        return rows[0] || null; // Trả về { lat: ..., lng: ... }
+        return rows[0] || null;
     }, 
 
     getAllCountries: async () => {
         const query = `SELECT country_name FROM countries_coordinates ORDER BY country_name ASC`;
         const [rows] = await pool.execute(query);
-        // Trả về mảng string: ['Việt Nam', 'Thái Lan', ...]
         return rows.map(row => row.country_name); 
     },
-    
-    // --- KẾT THÚC PHẦN THÊM MỚI ---
-
 
 };
 

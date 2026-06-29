@@ -1,12 +1,7 @@
-// backend/models/reward.model.js
 const db = require('../config/db');
 const pool = db.pool;
 
 class RewardModel {
-    /**
-     * Lấy toàn bộ danh sách hộp quà của user (Cả chưa mở và đã mở)
-     * Dùng để hiển thị trong tab "Phần thưởng" hoặc "Lịch sử nhận quà"
-     */
     static async getUserRewardBoxes(userId) {
         const sql = `
             SELECT 
@@ -26,10 +21,6 @@ class RewardModel {
         const [rows] = await pool.execute(sql, [userId]);
         return rows;
     }
-
-    /**
-     * Lấy chi tiết 1 bản ghi sở hữu hộp quà của user
-     */
     static async getUserRewardById(userRewardId) {
         const sql = `
             SELECT ur.*, rb.type as box_type, rb.name as box_name
@@ -41,9 +32,6 @@ class RewardModel {
         return rows[0];
     }
 
-    /**
-     * Lấy danh sách vật phẩm bên trong một hộp quà
-     */
     static async getBoxItems(boxId) {
         const sql = `
             SELECT item_id, type, value, probability 
@@ -54,11 +42,6 @@ class RewardModel {
         return rows;
     }
 
-    /**
-     * Cập nhật trạng thái đã nhận thưởng
-     * @param {string} userRewardId 
-     * @param {object} connection - Connection từ transaction
-     */
     static async updateClaimStatus(userRewardId, connection = null) {
         const dbExec = connection || pool;
         const sql = `

@@ -1,4 +1,3 @@
-// models/interaction.model.js
 const db = require('../config/db');
 const pool = db.pool;
 const LeaderboardModel = require('./leaderboard.model');
@@ -6,7 +5,6 @@ const LeaderboardModel = require('./leaderboard.model');
 
 class Interaction {
 
-    // --- Hàm Helper nội bộ: Kiểm tra sự tồn tại và trạng thái của bài viết ---
     static async _validatePostStatus(connection, postId, postType) {
         let targetTable = '';
         let idColumn = '';
@@ -16,8 +14,6 @@ class Interaction {
         else if (postType === 'dish') { targetTable = 'dictionary_dishes'; idColumn = 'dish_id'; }
         else { throw new Error('Loại bài viết không hợp lệ'); }
 
-        // Truy vấn kiểm tra
-        // Lưu ý: bảng dictionary_dishes trong SQL của bạn không có cột status nên mặc định là công khai
         const selectFields = (postType === 'dish') ? '1 as exists_flag' : 'status';
         const [rows] = await connection.execute(
             `SELECT ${selectFields} FROM ${targetTable} WHERE ${idColumn} = ?`,
@@ -35,11 +31,9 @@ class Interaction {
         return { targetTable, idColumn };
     }
 
-    // --- Hàm Helper nội bộ: Kiểm tra độ sâu của comment ---
     static async _getCommentDepth(connection, commentId) {
-        if (!commentId) return 0; // Không có parentId => Cấp 0 (Root)
+        if (!commentId) return 0;
 
-        // Truy vấn lấy parent_id của comment hiện tại và parent_id của comment cha nó
         const sql = `
             SELECT c1.parent_id AS p1_parent, c2.parent_id AS p2_parent
             FROM comments c1
@@ -53,12 +47,11 @@ class Interaction {
         if (rows[0].p1_parent === null) return 1; // Cha là Root => Comment mới sẽ là cấp 1
         if (rows[0].p2_parent === null) return 2; // Cha là cấp 1 => Comment mới sẽ là cấp 2
         
-        return 3; // Cha đã là cấp 2 hoặc sâu hơn
+        return 3;
     }
     
     // --- 1. LIKE / UNLIKE (Hỗ trợ Recipe, Article, Dish) ---
     static async toggleLike(connection, { userId, postId, postType }) {
-            // Xác định bảng cần update count
             const { targetTable, idColumn } = await this._validatePostStatus(connection, postId, postType);
 
             const [postRows] = await connection.execute(
@@ -66,7 +59,6 @@ class Interaction {
                 [postId]
             );
             
-            // Kiểm tra đã like chưa
             const [exists] = await connection.execute(
                 `SELECT * FROM likes WHERE user_id = ? AND post_id = ? AND post_type = ?`,
                 [userId, postId, postType]
@@ -76,28 +68,16 @@ class Interaction {
             let isLiked = false;
 
             if (exists.length > 0) {
-                // Đã like -> Xóa (Unlike) -> Giảm count
                 await connection.execute(
                     `DELETE FROM likes WHERE user_id = ? AND post_id = ? AND post_type = ?`,
                     [userId, postId, postType]
                 );
-                console.log(`User ${userId} unliked ${postType} ${postId}`);
-                // await connection.execute(
-                //     `UPDATE ${targetTable} SET like_count = GREATEST(like_count - 1, 0) WHERE ${idColumn} = ?`,
-                //     [postId]
-                // );
                 isLiked = false;
             } else {
-                // Chưa like -> Thêm (Like) -> Tăng count
                 await connection.execute(
                     `INSERT INTO likes (user_id, post_id, post_type) VALUES (?, ?, ?)`,
                     [userId, postId, postType]
                 );
-                console.log(`User ${userId} liked ${postType} ${postId}`);
-                // await connection.execute(
-                //     `UPDATE ${targetTable} SET like_count = like_count + 1 WHERE ${idColumn} = ?`,
-                //     [postId]
-                // );
                 isLiked = true;
             }
 
@@ -111,11 +91,9 @@ class Interaction {
 
 
 
-    // --- 2. SAVE / UNSAVE (Bookmark) ---
     static async toggleSave(connection, { userId, postId, postType }) {
             await this._validatePostStatus(connection, postId, postType);
 
-            // Kiểm tra đã lưu chưa
             const [exists] = await connection.execute(
                 `SELECT * FROM saved_posts WHERE user_id = ? AND post_id = ? AND post_type = ?`,
                 [userId, postId, postType]
@@ -123,14 +101,12 @@ class Interaction {
 
             let isSaved = false;
             if (exists.length > 0) {
-                // Đã lưu -> Bỏ lưu
                 await connection.execute(
                     `DELETE FROM saved_posts WHERE user_id = ? AND post_id = ? AND post_type = ?`,
                     [userId, postId, postType]
                 );
                 isSaved = false;
             } else {
-                // Chưa lưu -> Lưu
                 await connection.execute(
                     `INSERT INTO saved_posts (user_id, post_id, post_type) VALUES (?, ?, ?)`,
                     [userId, postId, postType]
@@ -140,7 +116,6 @@ class Interaction {
             return { isSaved };
     }
 
-    // --- 3. COMMENT (Bình luận) ---
     static async createComment(connection,{ userId, postId, postType, content, parentId = null}) {
             await this._validatePostStatus(connection, postId, postType);
 
@@ -151,35 +126,20 @@ class Interaction {
                 }
             }
 
-             // Xác định bảng cần update comment_count
             const { targetTable, idColumn } = await this._validatePostStatus(connection, postId, postType);
 
             const commentId = crypto.randomUUID();
-
-            // Insert Comment
-            // Lưu ý: bảng comments có cột comment_id default uuid() nhưng MySQL < 8.0 có thể cần gen ID từ code.
-            // Giả sử DB tự gen hoặc dùng uuid() trong SQL
             const sqlInsert = `INSERT INTO comments (comment_id, user_id, post_id, post_type, content, parent_id) VALUES (?, ?, ?, ?, ?, ?)`;
             await connection.execute(sqlInsert, [commentId, userId, postId, postType, content, parentId]);
-
-            // // Update Count
-            // if (targetTable) {
-            //     await connection.execute(
-            //         `UPDATE ${targetTable} SET comment_count = comment_count + 1 WHERE ${idColumn} = ?`,
-            //         [postId]
-            //     );
-            // }
 
             if (parentId) {
                 let currentParentId = parentId;
                 while (currentParentId) {
-                    //Tăng reply_count cho cha hiện tại
                     await connection.execute(
                         `UPDATE comments SET reply_count = reply_count + 1 WHERE comment_id = ?`,
                         [currentParentId]
                     );
                     
-                    // Tìm ID của cha cấp cao hơn (nếu có)
                     const [pRows] = await connection.execute(
                         `SELECT parent_id FROM comments WHERE comment_id = ?`,
                         [currentParentId]
@@ -219,7 +179,6 @@ class Interaction {
         `;
         const [rows] = await pool.execute(sql, [postId, postType]);
         
-        // Đếm tổng comment để phân trang
         const [countRows] = await pool.execute(
             `SELECT COUNT(*) as total FROM comments WHERE post_id = ? AND post_type = ? AND parent_id IS NULL`, 
             [postId, postType]
@@ -251,20 +210,14 @@ class Interaction {
         return rows;
     }
 
-    // Thêm vào trong class Interaction của file models/interaction.model.js
 
-    // Hàm cập nhật nội dung bình luận
     static async updateComment(commentId, userId, newContent) {
-        // Chỉ cập nhật khi đúng comment_id và người tạo (user_id)
         const sql = `UPDATE comments SET content = ?, update_at = NOW() WHERE comment_id = ? AND user_id = ?`;
         const [result] = await pool.execute(sql, [newContent, commentId, userId]);
         return result.affectedRows > 0;
     }
 
-    // Hàm xóa bình luận và giảm comment_count của bài viết
-// Hàm xóa bình luận và tất cả phản hồi con, trigger sẽ tự lo việc giảm comment_count
     static async deleteComment(connection, commentId, userId) {
-            // 1. Kiểm tra xem comment có tồn tại và thuộc về user này không để chống xóa lén
             const [checkOwner] = await connection.execute(
                 `SELECT comment_id FROM comments WHERE comment_id = ? AND user_id = ?`,
                 [commentId, userId]
@@ -287,14 +240,12 @@ class Interaction {
             const idsToDelete = rows.map(row => row.comment_id);
 
             // 3. Thực hiện xóa tất cả các ID trong 1 câu lệnh
-            // Lưu ý: Lệnh IN() này sẽ kích hoạt trigger after_comment_delete cho TỪNG bình luận bị xóa
             if (idsToDelete.length > 0) {
                 const [targetComment] = await connection.execute(
                     `SELECT parent_id FROM comments WHERE comment_id = ?`, [commentId]
                 );
                 const topParentId = targetComment[0]?.parent_id;
 
-                // Thực hiện xóa (idsToDelete chứa bản thân nó và toàn bộ con cháu)
                 const totalToRemove = idsToDelete.length;
                 const placeholders = idsToDelete.map(() => '?').join(',');
                 const sqlDelete = `DELETE FROM comments WHERE comment_id IN (${placeholders})`;
@@ -330,8 +281,6 @@ class Interaction {
 
     // --- 4. RATING (Đánh giá sao) ---
     static async ratePost(connection, { userId, postId, postType, score }) {
-            // Dùng INSERT ON DUPLICATE KEY UPDATE để xử lý việc user đánh giá lại
-            // Bảng ratings khóa chính là (user_id, post_id) -> Đảm bảo 1 user chỉ rate 1 lần/bài
             const sqlRate = `
                 INSERT INTO ratings (user_id, post_id, post_type, score) 
                 VALUES (?, ?, ?, ?)
@@ -348,10 +297,9 @@ class Interaction {
             );
 
             const ratingCount = stats[0].count;
-            const sumScore = stats[0].sum_score || 0; // Tránh null
+            const sumScore = stats[0].sum_score || 0; 
             const avgScore = ratingCount > 0 ? (sumScore / ratingCount) : 0;
 
-            // Update ngược lại vào bảng cha (recipes/Article)
             let targetTable = '';
             let idColumn = '';
             if (postType === 'recipe') { targetTable = 'recipes'; idColumn = 'recipe_id'; }
@@ -378,7 +326,6 @@ class Interaction {
     // --- 5. FOLLOW USER (Theo dõi người dùng) ---
     static async toggleFollow(connection, followerId, followingId) {
 
-            // Không được follow chính mình
             const [exists] = await connection.execute(
                 `SELECT * FROM Follows WHERE follower_id = ? AND following_id = ?`,
                 [followerId, followingId]
@@ -432,7 +379,6 @@ class Interaction {
 
     // --- 6. REPORT (Báo cáo bài viết) ---
     static async reportPost(connection, { userId, postId, postType, reason }) {
-            // Xác định bảng cần update report_count
             let targetTable = '';
             let idColumn = '';
             if (postType === 'recipe') { targetTable = 'recipes'; idColumn = 'recipe_id'; }
@@ -440,7 +386,6 @@ class Interaction {
             else if (postType === 'dish') { targetTable = 'dictionary_dishes'; idColumn = 'dish_id'; }
             else { throw new Error('Invalid post_type'); }
 
-            // Kiểm tra đã báo cáo chưa (chống spam, 1 user chỉ báo cáo 1 lần/post)
             const [exists] = await connection.execute(
                 `SELECT * FROM reports WHERE reporter_user_id = ? AND post_id = ? AND post_type = ?`,
                 [userId, postId, postType]
@@ -455,7 +400,6 @@ class Interaction {
                 [userId, postId, postType, reason]
             );
 
-            // Tăng report_count cho post
             await connection.execute(
                 `UPDATE ${targetTable} SET report_count = report_count + 1 WHERE ${idColumn} = ?`,
                 [postId]
@@ -495,47 +439,6 @@ class Interaction {
         saveRows.forEach(row => { if (results[row.post_id]) results[row.post_id].saved = true; });
 
         return results;
-    }
-
-    static async getInteractionCounts(postId, postType) {
-        try {
-            let tableName = '';
-            let idColumn = '';
-            let selectFields = '';
-
-            // Phân loại để chọn đúng bảng và các cột cần lấy
-            if (postType === 'recipe') {
-                tableName = 'recipes';
-                idColumn = 'recipe_id';
-                // Bảng recipes có đầy đủ like, comment và rating
-                selectFields = 'like_count, comment_count, rating_count, rating_avg_score, report_count';
-            } else if (postType === 'article') {
-                tableName = 'article_posts';
-                idColumn = 'article_id';
-                // Bảng Article chỉ có like, comment và report (theo cấu trúc ông mô tả)
-                selectFields = 'like_count, comment_count, report_count';
-            } else if (postType === 'dish') {
-                tableName = 'dictionary_dishes';
-                idColumn = 'dish_id';
-                // Bảng Dish cũng tương tự Article
-                selectFields = 'like_count, comment_count, report_count';
-            } else {
-                throw new Error('Loại bài viết không hợp lệ');
-            }
-
-            const query = `SELECT ${selectFields} FROM ${tableName} WHERE ${idColumn} = ?`;
-            const [rows] = await pool.execute(query, [postId]);
-            if (rows.length === 0) {
-                throw new Error('Không tìm thấy bài viết');
-            }
-
-            // Trả về trực tiếp dòng dữ liệu chứa các con số
-            return rows[0];
-        } catch (error) {
-            console.error("Lỗi khi lấy dữ liệu tổng hợp tương tác:", error);
-            throw error;
-        }
-
     }
 }
 

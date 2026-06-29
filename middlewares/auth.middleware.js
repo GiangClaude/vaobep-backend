@@ -3,11 +3,7 @@ const AppError = require('../utils/AppError');
 const authUtils = require('../utils/auth.utils');
 const UserModel = require('../models/user.model');
 const { createClient } = require('redis');
-
-const redisUrl = process.env.REDIS_URL;
-const redisClient = createClient({ url: redisUrl });
-redisClient.on('error', (err) => console.error('❌ Redis Auth Error:', err.message));
-redisClient.connect().catch(() => {});
+const redisClient = require('../config/redis.config'); 
 
 const protect = asyncHandler(async (req, res, next) => {
     let token;

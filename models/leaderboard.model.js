@@ -3,11 +3,7 @@ const scoringUtils = require('../utils/scoring.utils');
 
 class LeaderboardModel {
     
-    /**
-     * Đồng bộ điểm của một Công thức (Được gọi bên trong Transaction)
-     */
     static async syncRecipePoint(connection, recipeId) {
-        // Sử dụng connection truyền vào để đảm bảo tính nhất quán của Transaction hiện tại
         const exec = connection || db.pool;
 
         // 1. Lấy thống kê hiện tại của Recipe (Đã được Trigger cập nhật)
@@ -27,7 +23,7 @@ class LeaderboardModel {
 
         // 3. Lấy snapshot của tháng trước để tính tăng trưởng
         const date = new Date();
-        date.setMonth(date.getMonth() - 1); // Lùi 1 tháng
+        date.setMonth(date.getMonth() - 1);
         const lastMonth = date.getMonth() + 1;
         const lastYear = date.getFullYear();
 
@@ -63,7 +59,7 @@ class LeaderboardModel {
     }
 
     /**
-     * Đồng bộ điểm của một Đầu bếp (Được gọi bên trong Transaction)
+     * Đồng bộ điểm của một Đầu bếp
      */
     static async syncUserPoint(connection, userId) {
         const exec = connection || db.pool;
@@ -95,7 +91,6 @@ class LeaderboardModel {
         );
 
         let growthStats = { newFollowers: 0, newBadges: 0 };
-        // Lấy tổng huy hiệu hiện tại
         const [badgeRows] = await exec.execute(`SELECT COUNT(*) as badgeCount FROM user_badges WHERE user_id = ?`, [userId]);
 
         if (snapRows.length > 0) {
@@ -115,7 +110,6 @@ class LeaderboardModel {
         await exec.execute(`UPDATE users SET rank_point = ? WHERE user_id = ?`, [newPoint, userId]);
     }
 
-    // --- THÊM MỚI BẮT ĐẦU ---
 
     /**
      * Lấy Top 10 Công thức (Real-time tháng hiện tại)
@@ -144,7 +138,6 @@ class LeaderboardModel {
      * Lấy Top 10 Đầu bếp (Real-time tháng hiện tại)
      */
     static async getLiveTopUsers(limit = 10) {
-        // Sử dụng subquery để đếm số công thức mới trong tháng hiện tại
         const sql = `
             SELECT 
                 u.user_id, u.full_name, u.avatar, u.bio, u.email, u.rank_point,
@@ -171,7 +164,6 @@ class LeaderboardModel {
             LIMIT ${parseInt(limit) || 10}
         `;
         const [rows] = await db.pool.execute(sql, [entityType, month, year]);
-        // Parse lại snapshot_data từ JSON
         return rows.map(row => ({
             ...row,
             snapshot_data: typeof row.snapshot_data === 'string' ? JSON.parse(row.snapshot_data) : row.snapshot_data
@@ -179,7 +171,6 @@ class LeaderboardModel {
     }
 
     /**
-     * Hàm Chốt Sổ (Chạy vào cuối tháng)
      * Lưu Snapshot toàn bộ hệ thống và lưu Top 10 vào History
      */
     static async runMonthlySnapshot() {
@@ -188,11 +179,9 @@ class LeaderboardModel {
             await connection.beginTransaction();
 
             const date = new Date();
-            // Lấy tháng vừa kết thúc (nếu chạy ngày 1/6 thì chốt sổ cho tháng 5)
             const targetMonth = date.getMonth() === 0 ? 12 : date.getMonth(); 
             const targetYear = date.getMonth() === 0 ? date.getFullYear() - 1 : date.getFullYear();
 
-            // 1. Lấy Top 10 Recipe và chèn vào bảng History
             const topRecipes = await this.getLiveTopRecipes(10);
             for (let i = 0; i < topRecipes.length; i++) {
                 const r = topRecipes[i];
@@ -222,7 +211,6 @@ class LeaderboardModel {
                 );
             }
 
-            // 3. Cập nhật Snapshot (số lượng like, cmt, follow...) của TẤT CẢ mọi người để tháng sau tính tăng trưởng
             await connection.execute(`
                 INSERT INTO monthly_snapshots (entity_id, entity_type, snapshot_month, snapshot_year, likes, comments, trusted_recipes)
                 SELECT recipe_id, 'recipe', ?, ?, like_count, comment_count, is_trusted FROM recipes
@@ -247,7 +235,6 @@ class LeaderboardModel {
             connection.release();
         }
     }
-    // --- THÊM MỚI KẾT THÚC ---
 }
 
 module.exports = LeaderboardModel;

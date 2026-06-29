@@ -2,18 +2,12 @@ const InventoryService = require('../services/inventory.service');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendResponse } = require('../utils/responseHelper');
 
-/**
- * Lấy túi đồ của chính mình
- */
 const getMyInventory = asyncHandler(async (req, res) => {
     const userId = req.user.user_id; 
     const inventory = await InventoryService.getMyInventory(userId);
     sendResponse(res, 200, true, 'Success', inventory);
 });
 
-/**
- * Lấy túi đồ của người khác
- */
 const getPublicInventory = asyncHandler(async (req, res) => {
     const { userId } = req.params;
     const itemType = req.query.type || 'badge';

@@ -3,11 +3,9 @@ const pool = db.pool;
 const { v4: uuidv4 } = require('uuid');
 const {DEFAULT_ARTICLE_IMG} = require("../config/constants")
 const ArticleModel = {
-// --- THÊM MỚI TỪ ĐÂY: CHO ADMIN QUẢN LÝ BÀI VIẾT TỪ ĐIỂN ---
 
     // Lấy danh sách có lọc Status
     getArticlesByAdmin: async (limit, offset, search, statusFilter, sortKey = 'created_at', sortOrder = 'DESC') => {
-        // Map allowed sort keys to DB columns
         const sortMapping = {
             name: 'a.title',
             author: 'u.full_name',
@@ -67,15 +65,9 @@ const ArticleModel = {
         return rows[0].total;
     },
 
-    // --- KẾT THÚC PHẦN THÊM MỚI ---
-    // --- CÁC HÀM MỚI CHO USECASE CHUYÊN GIA ---
-
     // 1. Tạo bài viết
     create: async (connection, { articleId, userId, title, description, content, coverImage, status, readTime }) => {
-        // Giả sử bạn đã chạy lệnh ALTER TABLE thêm description và cover_image.
-        // Nếu chưa, hãy xóa 2 tham số đó khỏi câu query dưới đây.
         const executor = connection || pool;
-        // console.log("Debug ArticleModel.create:", { articleId, userId, title, description, content, coverImage, status, readTime });
         
         if (!coverImage || String(coverImage).trim() === '') {
             coverImage = DEFAULT_ARTICLE_IMG;
@@ -98,9 +90,7 @@ const ArticleModel = {
         const imgKey = updateData.hasOwnProperty('cover_image') ? 'cover_image' : 
                        updateData.hasOwnProperty('coverImage') ? 'coverImage' : null;
 
-        // Nếu Frontend CÓ gửi yêu cầu cập nhật ảnh
         if (imgKey) {
-            // Nếu ảnh bị rỗng (User xóa ảnh) -> Tráo thành Default
             if (!updateData[imgKey] || String(updateData[imgKey]).trim() === '') {
                 updateData[imgKey] = DEFAULT_ARTICLE_IMG;
             }
@@ -120,7 +110,6 @@ const ArticleModel = {
         return result;
     },
 
-    // 3. Lấy chi tiết bài viết (Công khai)
     findById: async (articleId) => {
         const query = `
             SELECT a.*, u.full_name as author_name, u.avatar as author_avatar
@@ -135,7 +124,6 @@ const ArticleModel = {
     // 4. Lấy danh sách bài viết (Public - Cho trang Học thuật)
     getPublicArticles: async ({ limit, offset, keyword, tagIds, sort }) => {
         let params = [];
-        // Tích hợp luôn công thức tính score từ hàm getFeaturedArticles cũ của bạn vào đây
         let query = `
             SELECT a.article_id, a.title, a.description, a.cover_image, a.created_at, a.comment_count, a.read_time, a.like_count,
                    u.full_name as author_name, u.avatar as author_avatar, u.user_id as author_id,
@@ -177,7 +165,7 @@ const ArticleModel = {
                 GROUP BY post_id
                 HAVING COUNT(DISTINCT tag_id) = ?
             )`;
-            params.push(...tagIds, tagIds.length); // Thêm các tag_id và số lượng tag cần khớp
+            params.push(...tagIds, tagIds.length);
         }
 
         
@@ -200,16 +188,12 @@ const ArticleModel = {
 
         // 4. Phân trang
         query += ` LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}`;
-
-        // console.log("Query: ", query, params);
-
         const [rows] = await pool.execute(query, params);
         return rows;
     },
 
-/**
+    /**
      * Đếm tổng số bài viết công khai có áp dụng bộ lọc từ khóa và danh sách thẻ tags.
-     * Đã đồng bộ logic HAVING COUNT để đếm chính xác số lượng bài viết chứa ĐỦ tất cả các tag yêu cầu.
      */
     countPublicArticles: async ({ keyword, tagIds }) => {
         let params = [];
@@ -232,7 +216,6 @@ const ArticleModel = {
             params.push(searchVal, searchVal, searchVal, searchVal);
         }
 
-        // SỬA TẠI ĐÂY: Thêm GROUP BY và HAVING COUNT để ép câu lệnh đếm tuân thủ theo phép AND giống hàm lấy dữ liệu
         if (tagIds && tagIds.length > 0) {
             const placeholders = tagIds.map(() => '?').join(',');
             query += ` AND a.article_id IN (
@@ -242,7 +225,6 @@ const ArticleModel = {
                 GROUP BY post_id
                 HAVING COUNT(DISTINCT tag_id) = ?
             )`;
-            // Đẩy thêm số lượng tag vào mảng tham số để gán cho dấu hỏi "?" của HAVING COUNT
             params.push(...tagIds, tagIds.length); 
         }
 
@@ -251,7 +233,6 @@ const ArticleModel = {
     },
 
     // 4b. Lấy các bài viết nổi bật theo công thức điểm (score)
-    // Công thức kết hợp: tương tác (comment_count), độ dài (read_time), báo cáo (report_count), tươi mới (created_at) và một jitter ngẫu nhiên để tránh lặp bài
     getFeaturedArticles: async (limit = 10) => {
         const query = `
             SELECT a.article_id, a.title, a.description, a.cover_image, a.created_at, a.comment_count, a.like_count, a.report_count, a.read_time,
@@ -273,8 +254,6 @@ const ArticleModel = {
         const [rows] = await pool.execute(query);
         return rows;
     },
-
-    // Thêm vào ArticleModel trong file article.model.js
 
     // Lấy danh sách bài viết đã lưu của 1 user
     getSavedArticlesByUser: async ({ userId, limit, offset }) => {
@@ -319,7 +298,7 @@ const ArticleModel = {
         return rows;
     },
 
-    // Thêm hàm lấy bài viết public của một user cụ thể
+    // Lấy bài viết public của một user cụ thể
     getPublicArticlesByUserId: async (userId, limit, offset) => {
         const query = `
             SELECT a.article_id, a.title, a.description, a.cover_image, a.created_at, 
@@ -335,7 +314,7 @@ const ArticleModel = {
         return rows;
     },
 
-    // Thêm hàm đếm tổng số bài public của user để phân trang
+    // Đếm tổng số bài public của user để phân trang
     countPublicArticlesByUserId: async (userId) => {
         const query = `
             SELECT COUNT(*) as total 
@@ -354,7 +333,7 @@ const ArticleModel = {
     }
 
     ,
-    // 7. Cập nhật status và update_at (dùng bởi admin controller)
+    // 7. Cập nhật status và update_at
     updateStatus: async (articleId, status) => {
         const query = `
             UPDATE article_posts 
@@ -365,7 +344,7 @@ const ArticleModel = {
         return result.affectedRows > 0;
     },
 
-    // 8. Đếm tổng số bài viết (dùng bởi dashboard)
+    // 8. Đếm tổng số bài viết 
     countAllArticles: async (search = '') => {
         let query = `SELECT COUNT(*) as total FROM article_posts`;
         const params = [];

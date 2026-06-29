@@ -1,8 +1,4 @@
-const { createClient } = require('redis');
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redisClient = createClient({ url: redisUrl });
-redisClient.connect().catch(() => {});
-
+const redisClient = require('../config/redis.config');
 const PER_USER_LIMIT = parseInt(process.env.RATE_LIMIT_PER_USER || '2', 10); // per second
 const GLOBAL_RPM = parseInt(process.env.GLOBAL_RPM || '15', 10);
 const { sendResponse } = require('../utils/responseHelper');

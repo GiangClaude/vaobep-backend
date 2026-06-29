@@ -1,10 +1,8 @@
 const db = require('../config/db'); 
-// 2. Định nghĩa pool bằng cách lấy từ đối tượng db
 const pool = db.pool;
 const {DEFAULT_AVATAR_IMG, DEFAULT_COVER_IMG} = require("../config/constants")
 
 class User {
-    //Create user cho user đăng ký
     static async create(name, email, passwordHash, otp, otpExpires) {
         const [result] = await pool.execute(
             'INSERT INTO users (full_name, email, password, avatar, cover_image, account_status, verification_otp, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -13,9 +11,7 @@ class User {
         return result.insertId;
     }
 
-    //Create user với role cho admin
     static async createWithRole({id, full_name, email, passwordHash, role, otp, otpExpires }) {
-        // Lưu ý: account_status để là 'pending' để bắt buộc xác thực email
         const [result] = await pool.execute(
             'INSERT INTO users (user_id, full_name, email, password, role, account_status, verification_otp, otp_expires_at) VALUES (?,?, ?, ?, ?, ?, ?, ?)',
             [id, full_name, email, passwordHash, role, 'pending', otp, otpExpires]
@@ -72,10 +68,10 @@ class User {
             id: user.user_id,
             fullName: user.full_name,
             email: user.email,
-            avatar: user.avatar || DEFAULT_AVATAR_IMG, // Xử lý fallback ở backend hoặc frontend đều được
+            avatar: user.avatar || DEFAULT_AVATAR_IMG, 
             coverImage: user.cover_image || DEFAULT_COVER_IMG,
             bio: user.bio,
-            role: user.role, // 'user', 'vip', 'pro'
+            role: user.role,
             points: user.points,
             isCheckedIn: !!user.is_checked_in,
             stats: {
@@ -88,7 +84,6 @@ class User {
         };
     }
 
-    // [THÊM MỚI] - Dành riêng cho Admin/System, không filter trạng thái hay role
     static async findByIdForAdmin(id) {
         const sql = `
             SELECT 
@@ -115,7 +110,7 @@ class User {
             bio: user.bio,
             role: user.role, 
             points: user.points,
-            status: user.account_status, // Trả thêm status để admin dễ quản lý
+            status: user.account_status, 
             stats: {
                 recipes: user.recipes_count || 0,
                 saved: user.saved_count || 0,
@@ -154,7 +149,6 @@ class User {
                 WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'
             `;
             
-            // Params: [currentUserId (cho subquery), id (cho where clause)]
             const [rows] = await pool.execute(sql, [currentUserId, id]);
             
             if (!rows[0]) return null;
@@ -167,7 +161,6 @@ class User {
                 coverImage: user.cover_image || DEFAULT_COVER_IMG,
                 bio: user.bio,
                 role: user.role,
-                // [MỚI] Trả về trạng thái follow
                 isFollowing: !!user.is_following, 
                 stats: {
                     recipes: user.recipes_count || 0,
@@ -203,14 +196,12 @@ class User {
     }
 
     static async findByIdForUpdate(userId, connection) {
-        // FOR UPDATE sẽ khóa dòng này lại, các transaction khác phải chờ
         const sql = `SELECT user_id, full_name, email, points, account_status FROM users u WHERE u.user_id = ? FOR UPDATE`;
         const [rows] = await connection.execute(sql, [userId]);
         return rows[0];
     }
 
     static async updatePoints(userId, amount, connection) {
-        // Sử dụng connection truyền vào (nếu có) hoặc dùng pool mặc định
         const dbExec = connection || pool;
         const sql = `UPDATE users u SET u.points = u.points + ?  WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'`;
         const [result] = await dbExec.execute(sql, [amount, userId]);
@@ -228,7 +219,7 @@ class User {
         try {
             const [result] = await pool.execute(
                 'UPDATE users u SET u.account_status = ?, u.verification_otp = ?, u.otp_expires_at = ? WHERE u.user_id = ?',
-                ['active', null, null, userId] // Set active, xóa OTP
+                ['active', null, null, userId]
             );
             return result.affectedRows > 0;
         } catch (error) {
@@ -256,15 +247,6 @@ class User {
         const [rows] = await pool.execute(sql, [userId]);
         return rows[0] ? rows[0].password : null;
     };
-
-    // Chủ động đổi mk => cần mật khẩu cũ
-    // static async updatePassword(userId,  hashedNewPassword) {
-    //     const updateSql = "UPDATE users SET password = ? WHERE user_id = ?";
-    //     await pool.execute(updateSql, [hashedNewPassword, userId]);
-    //     return true;
-    // }
-
-    // Quên mật khẩu nên phải đổi
     static async changePassword(userId, hashedNewPassword){
         try {
             const sql = "UPDATE users SET password = ? WHERE user_id = ?";
@@ -294,14 +276,11 @@ class User {
         }
     }
 
-    // Thêm đoạn này vào trong class User (trước dấu đóng '}')
-// [CẬP NHẬT] Hàm tìm kiếm user có check trạng thái follow
     static async searchUsers({ keyword, page = 1, limit = 10, sort = 'newest', currentUserId = null }) {
         const offset = (page - 1) * limit;
         const kw = `%${keyword}%`;
 
         try {
-            // Query đếm tổng
             const countSql = `
                 SELECT COUNT(*) as total 
                 FROM users u
@@ -315,7 +294,6 @@ class User {
             if (sort === 'oldest') orderBy = 'u.created_at ASC';
             if (sort === 'most_followed') orderBy = 'followers_count DESC';
 
-            // [MỚI] Thêm subquery check is_following
             const sql = `
                 SELECT 
                     u.user_id, 
@@ -338,13 +316,11 @@ class User {
                 LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
             `;
 
-            // Params: [currentUserId, keyword, keyword, limit, offset]
             const [users] = await pool.query(sql, [currentUserId, kw]);
 
-            // Map lại key cho chuẩn boolean
             const formattedUsers = users.map(user => ({
                 ...user,
-                isFollowing: !!user.is_following // Chuyển 1/0 sang true/false
+                isFollowing: !!user.is_following 
             }));
 
             return {
@@ -358,21 +334,12 @@ class User {
             throw error;
         }
     }
-
-    // --- THÊM MỚI BẮT ĐẦU ---
-/**
-     * Cập nhật thông tin profile user (Dynamic Update)
-     * @param {string} userId 
-     * @param {object} data { fullName, bio, avatar } - Các trường có thể undefined
-     */
     static async updateProfile(userId, data) {
         try {
             const updates = [];
             const values = [];
 
-            console.log("User update Profile: ", data);
 
-            // Kiểm tra từng trường, nếu có dữ liệu thì push vào mảng updates
             if (data.fullName !== undefined) {
                 updates.push("full_name = ?");
                 values.push(data.fullName);
@@ -390,7 +357,6 @@ class User {
                 values.push(avatarUrl);
             }
 
-            // THÊM BLOCK NÀY: Xử lý coverImage
             if (data.coverImage !== undefined) {
                 let coverUrl = data.coverImage;
                 if (!coverUrl || String(coverUrl).trim() === '') coverUrl = DEFAULT_COVER_IMG;
@@ -398,17 +364,12 @@ class User {
                 values.push(coverUrl);
             }
 
-            // Luôn cập nhật thời gian update
             updates.push("update_at = NOW()");
 
-            // Nếu không có gì để update (ngoài update_at) thì return sớm
-            // (Tuy nhiên controller đã check rồi, đây là check phòng hờ)
             if (updates.length === 1) return 0;
 
-            // Xây dựng câu query
             const sql = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`;
             
-            // Push userId vào cuối mảng values (cho dấu ? ở WHERE)
             values.push(userId);
 
             
@@ -420,9 +381,7 @@ class User {
         }
     }
 
-    //Admin--------------------------------------------------------------------------
     static async getAllUsers(limit, offset, search, sortKey = 'created_at', sortOrder = 'DESC') {
-        // Whitelist các cột được phép sort để tránh SQL Injection
         const allowedSorts = ['full_name', 'email', 'created_at', 'role', 'points'];
         const orderBy = allowedSorts.includes(sortKey) ? sortKey : 'created_at';
         const orderDir = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
@@ -435,7 +394,6 @@ class User {
             params.push(`%${search}%`, `%${search}%`);
         }
         
-        // Dynamic Order By
         query += ` ORDER BY ${orderBy} ${orderDir} LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
         
         
@@ -450,13 +408,13 @@ class User {
             query += ` WHERE full_name LIKE ? OR email LIKE ?`;
             params.push(`%${search}%`, `%${search}%`);
         }
-        const [rows] = await pool.execute(query, params); // Sửa db.execute -> pool.execute
+        const [rows] = await pool.execute(query, params); 
         return rows[0].total;
     }
 
     static async updateStatus(userId, status){
         const query = `UPDATE users SET account_status = ? WHERE user_id = ?`;
-        const [result] = await pool.execute(query, [status, userId]); // Sửa db.execute -> pool.execute
+        const [result] = await pool.execute(query, [status, userId]);
         return result;
     }
 
@@ -484,7 +442,6 @@ class User {
 
 
     static async adminUpdateUser(userId, { role, status }) {
-        // Chỉ update nếu giá trị hợp lệ được truyền vào
         let updates = [];
         let params = [];
 
@@ -498,10 +455,8 @@ class User {
             params.push(status);
         }
 
-        // Luôn update thời gian
         updates.push('update_at = NOW()');
 
-        // Nếu không có gì để update
         if (updates.length === 1) return true; 
 
         const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`;

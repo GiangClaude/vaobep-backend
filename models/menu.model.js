@@ -10,7 +10,6 @@ class MenuModel {
             const menuId = uuidv4();
             const { name, description, is_public, cloned_from_id, days } = menuData;
 
-            // 1. Insert Menu
             const sqlMenu = `
                 INSERT INTO menus (menu_id, user_id, name, description, is_public, cloned_from_id)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -24,13 +23,11 @@ class MenuModel {
                 cloned_from_id || null
             ]);
 
-            // 2. Insert Nested Data (Days -> Meals -> Recipes)
             if (days && days.length > 0) {
                 for (let i = 0; i < days.length; i++) {
                     const day = days[i];
                     const dayId = uuidv4();
                     
-                    // Insert Day
                     await connection.execute(
                         `INSERT INTO menu_days (day_id, menu_id, day_index, title) VALUES (?, ?, ?, ?)`,
                         [dayId, menuId, i + 1, day.title || `Ngày ${i + 1}`]
@@ -40,7 +37,6 @@ class MenuModel {
                         for (const meal of day.meals) {
                             const mealId = uuidv4();
                             
-                            // Insert Meal
                             await connection.execute(
                                 `INSERT INTO menu_meals (meal_id, day_id, meal_type, title, note) VALUES (?, ?, ?, ?, ?)`,
                                 [mealId, dayId, meal.meal_type || 'breakfast', meal.title || null, meal.note || null]
@@ -48,7 +44,6 @@ class MenuModel {
 
                             if (meal.recipes && meal.recipes.length > 0) {
                                 for (const recipe of meal.recipes) {
-                                    // Insert Recipe
                                     await connection.execute(
                                         `INSERT INTO menu_recipes (meal_id, recipe_id, servings_multiplier) VALUES (?, ?, ?)`,
                                         [mealId, recipe.recipe_id, recipe.servings_multiplier || 1.0]
@@ -64,7 +59,7 @@ class MenuModel {
     }
 
     /**
-     * LẤY CHI TIẾT 1 MENU (Dựng lại cấu trúc cây JSON)
+     * LẤY CHI TIẾT 1 MENU
      */
     static async findById(menuId) {
         try {
@@ -99,7 +94,6 @@ class MenuModel {
                 [menuId]
             );
 
-            // DỰNG LẠI CẤU TRÚC CÂY (Lắp ráp nested JSON)
             menu.days = days.map(day => {
                 const dayMeals = meals.filter(m => m.day_id === day.day_id);
                 day.meals = dayMeals.map(meal => {
@@ -114,7 +108,6 @@ class MenuModel {
             console.error('Lỗi MenuModel (findById):', error);
             throw error;
         }
-        // Đã xóa khối finally { if(connection) connection.release() } vì không dùng connection nữa
     }
 
     /**
@@ -146,16 +139,13 @@ class MenuModel {
     static async update(connection,menuId, userId, menuData) {
             const { name, description, is_public, days } = menuData;
 
-            // 1. Update basic info
             await connection.execute(
                 `UPDATE menus SET name = ?, description = ?, is_public = ? WHERE menu_id = ? AND user_id = ?`,
                 [name, description || null, is_public || false, menuId, userId]
             );
 
-            // 2. XÓA TOÀN BỘ NGÀY CŨ (Nhờ ON DELETE CASCADE, meals và recipes bên trong tự động bay theo)
             await connection.execute(`DELETE FROM menu_days WHERE menu_id = ?`, [menuId]);
 
-            // 3. INSERT LẠI CẤU TRÚC MỚI (Copy logic từ hàm Create)
             if (days && days.length > 0) {
                 for (let i = 0; i < days.length; i++) {
                     const day = days[i];
@@ -195,7 +185,6 @@ class MenuModel {
      */
     static async delete(menuId, userId) {
         try {
-            // Cascade delete sẽ lo phần Days, Meals, Recipes
             const [result] = await pool.execute(
                 `DELETE FROM menus WHERE menu_id = ? AND user_id = ?`,
                 [menuId, userId]
@@ -230,13 +219,12 @@ class MenuModel {
             `;
             const [rows] = await pool.execute(sql, [menuId]);
 
-            // Format lại data theo nhóm (Category) cho dễ hiển thị ở UI
             const groupedList = rows.reduce((acc, row) => {
                 const cat = row.category || 'others';
                 if (!acc[cat]) acc[cat] = [];
                 acc[cat].push({
                     name: row.ingredient_name,
-                    quantity: Math.round(row.total_quantity * 100) / 100, // Làm tròn 2 chữ số thập phân
+                    quantity: Math.round(row.total_quantity * 100) / 100,
                     unit: row.unit_name
                 });
                 return acc;
@@ -254,7 +242,6 @@ class MenuModel {
      */
     static async getPublicMenus() {
         try {
-            // Lấy thêm thông tin người tạo (bảng users) để hiển thị "Đăng bởi Admin / Vào Bếp"
             const sql = `
                 SELECT m.*, 
                        u.full_name AS author_name, 
