@@ -6,13 +6,9 @@ const { addVectorSyncJob } = require('./vectorQueue.service');
 const AppError = require('../utils/AppError');
 
 class DictionaryDishService {
-    /**
-     * Lấy danh sách món ăn (có phân trang và tìm kiếm)
-     */
     async getAllDishes(page, limit, search) {
         const offset = (page - 1) * limit;
         
-        // Chạy song song count và get để tối ưu
         const [totalItems, dishes] = await Promise.all([
             DictionaryDish.countAll(search),
             DictionaryDish.getAll(limit, offset, search)
@@ -21,9 +17,6 @@ class DictionaryDishService {
         return { totalItems, dishes };
     }
 
-    /**
-     * Lấy chi tiết món ăn kèm các thông tin liên quan (Aggregation)
-     */
     async getDishDetail(dishId, userId) {
         const [dish, eateries, recipes] = await Promise.all([
             DictionaryDish.getById(dishId),
@@ -43,23 +36,14 @@ class DictionaryDishService {
         return { ...dish, eateries, recipes, interactionState };
     }
 
-    /**
-     * Lấy dữ liệu tóm tắt cho Bản đồ
-     */
     async getMapSummary() {
         return await DictionaryDish.getMapSummary();
     }
 
-    /**
-     * Lấy toàn bộ món ăn cho Bản đồ
-     */
     async getMapAllDishes() {
         return await DictionaryDish.getMapAllDishes();
     }
 
-    /**
-     * Đề cử công thức cho món ăn (Có sử dụng Transaction)
-     */
     async voteRecipeForDish(dishId, recipeId, userId) {
         if (!userId) throw new AppError('Bạn cần đăng nhập để thực hiện chức năng này', 401);
 
@@ -68,8 +52,6 @@ class DictionaryDishService {
             await connection.beginTransaction();
 
             const result = await RecipeLinkModel.toggleVote(connection, userId, recipeId, dishId, 'dish');
-            console.log("Dich Service: ", result);
-            // Đồng bộ Vector DB
             addVectorSyncJob(dishId, 'dish', 'upsert');
 
             await connection.commit();
@@ -82,9 +64,6 @@ class DictionaryDishService {
         }
     }
 
-    /**
-     * Lấy tọa độ trung tâm quốc gia từ DB và tạo độ lệch ngẫu nhiên (jitter) phục vụ hiển thị bản đồ
-     */
     async generateJitteredCoordinates(countryName) {
         const [rows] = await db.pool.execute(
             'SELECT lat, lng FROM Countries_Coordinates WHERE country_name = ?',
@@ -102,9 +81,6 @@ class DictionaryDishService {
         return { latitude: null, longitude: null };
     }
 
-    /**
-     * Tính toán lại điểm tổng hợp (point) của món ăn dựa trên số lượng tương tác (like, comment, report...)
-     */
     async recalculatePoint(dishId) {
         const query = `
             UPDATE Dictionary_Dishes 

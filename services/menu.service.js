@@ -10,7 +10,6 @@ class MenuService {
         const connection = await db.pool.getConnection();
         try {
             await connection.beginTransaction();
-            // Truyền connection xuống Model
             const newMenu = await MenuModel.create(connection, userId, menuData);
             await connection.commit();
             return newMenu;
@@ -30,7 +29,6 @@ class MenuService {
         const connection = await db.pool.getConnection();
         try {
             await connection.beginTransaction();
-            // Truyền connection xuống Model
             await MenuModel.update(connection, menuId, userId, menuData);
             await connection.commit();
             return true;

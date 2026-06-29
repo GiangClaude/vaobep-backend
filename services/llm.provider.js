@@ -26,7 +26,6 @@ class LLMProvider {
             }
         };
 
-        // Nếu có System Instruction thì mới gắn vào
         if (systemInstructionText) {
             body.systemInstruction = {
                 parts: [{ text: systemInstructionText }]

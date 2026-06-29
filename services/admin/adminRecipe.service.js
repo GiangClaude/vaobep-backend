@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/services/admin/adminRecipe.service.js
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs').promises;
@@ -7,9 +6,6 @@ const { addVectorSyncJob } = require('../vectorQueue.service');
 const AppError = require('../../utils/AppError');
 
 class AdminRecipeService {
-    /**
-     * Lấy danh sách công thức cho Admin (Có phân trang, tìm kiếm)
-     */
     async getRecipes(page, limit, search, sortKey, sortOrder) {
         const offset = (page - 1) * limit;
         const recipes = await RecipeModel.getAllRecipesForAdmin(limit, offset, search, sortKey, sortOrder);
@@ -18,9 +14,6 @@ class AdminRecipeService {
         return { recipes, total, totalPages: Math.ceil(total / limit) };
     }
 
-    /**
-     * Ẩn bài viết (Hoặc thay đổi trạng thái thành banned)
-     */
     async hideRecipe(id, status) {
         const targetStatus = status || 'banned';
         await RecipeModel.updateStatus(id, targetStatus);
@@ -33,18 +26,12 @@ class AdminRecipeService {
         return targetStatus;
     }
 
-    /**
-     * Lấy chi tiết công thức
-     */
     async getRecipeDetail(id) {
         const recipe = await RecipeModel.findById(id);
         if (!recipe) throw new AppError('Recipe not found', 404);
         return recipe;
     }
 
-    /**
-     * Admin trực tiếp tạo công thức mới
-     */
     async createAdminRecipe(userId, data, fileInfo) {
         const recipeId = uuidv4();
         const { title, description, instructions, servings, cook_time, total_calo, ingredients, tags } = data;
@@ -53,10 +40,9 @@ class AdminRecipeService {
 
         let coverImage = null;
         if (fileInfo) {
-            coverImage = fileInfo.path; // Lấy link Cloudinary, bỏ hoàn toàn đoạn fs.rename
+            coverImage = fileInfo.path; 
         }
 
-        // Xử lý nguyên liệu
         let ingredientsData = [];
         if (ingredients) {
             try {
@@ -71,14 +57,12 @@ class AdminRecipeService {
             }
         }
 
-        // Xử lý Tags
         let tagsData = [];
         if (tags) {
-            try { tagsData = JSON.parse(tags); } catch (e) { /* Bỏ qua nếu lỗi */ }
+            try { tagsData = JSON.parse(tags); } catch (e) {  }
         }
 
-        // Insert vào DB
-        await RecipeModel.create(null, { // Truyền null vì hàm create trong Model đòi connection, Model sẽ tự dùng pool
+        await RecipeModel.create(null, { 
             recipeId,
             userId,
             title,
@@ -93,15 +77,11 @@ class AdminRecipeService {
             tags: tagsData
         });
 
-        // Đồng bộ Pinecone
         addVectorSyncJob(recipeId, 'recipe', 'upsert');
         
         return recipeId;
     }
 
-    /**
-     * Cập nhật thông tin cơ bản (status, is_trust)
-     */
     async updateRecipe(id, data) {
         const { status, is_trust } = data;
         await RecipeModel.adminUpdate(id, { status, is_trust });

@@ -5,7 +5,6 @@ const { validateReportInput, validateInteractionInput, validateCommentInput } = 
 const AppError = require('../utils/AppError');
 const db = require('../config/db');
 class InteractionService {
-    // Helper giữ nguyên từ file cũ
     _isValidPostType(type) {
         return ['recipe', 'article', 'dish'].includes(type);
     }
@@ -43,7 +42,6 @@ class InteractionService {
         try {
             await connection.beginTransaction();
 
-            // Truyền connection xuống Model
             const result = await InteractionModel.toggleSave(connection, { userId, postId, postType });
             
             await connection.commit();
@@ -151,7 +149,6 @@ class InteractionService {
         try {
             await connection.beginTransaction();
 
-            // Truyền connection xuống Model
             const result = await InteractionModel.toggleFollow(connection, followerId, followingId);
             
             await connection.commit();

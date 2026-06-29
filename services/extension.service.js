@@ -22,17 +22,12 @@ class ExtensionService {
 
     /**
      * 3. Nhận diện hình ảnh và tìm công thức tương ứng
-     * - Làm sạch chuỗi base64
-     * - Gọi AI lấy tên món
-     * - Truy vấn DB tìm món đó
      */
     async identifyImage(image) {
         if (!image) throw new AppError('Thiếu ảnh', 400);
 
-        // Dọn dẹp chuỗi base64
         const base64Data = image.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
-        // Gọi AI nhận diện tên món
         const dishName = await extensionAiService.identifyDishFromImage(base64Data);
         
         const searchTerm = `%${dishName.replace(/["']/g, '').trim()}%`; 

@@ -9,7 +9,6 @@ const uploadArticleImages = uploadArticle.fields([
 ]);
 const { v4: uuidv4 } = require('uuid');
 
-// Middleware tạo ID cho bài viết trước khi Upload ảnh (giống Recipe)
 const generateArticleId = (req, res, next) => {
     req.savedArticleId = uuidv4();
     console.log("Đã tạo Article ID trước: ", req.savedArticleId);
@@ -17,16 +16,9 @@ const generateArticleId = (req, res, next) => {
 };
 
 
-
-// ==========================================
-// CÁC ROUTES DÀNH CHO CHUYÊN GIA (PRO) VÀ ADMIN
-// ==========================================
-
-// Lấy danh sách bài của chính mình
 router.get('/me/owner', protect, verifyProMiddleware, articleController.getOwnerArticles);
 router.get('/me/saved', protect, articleController.getSavedArticles);
 
-// Đăng bài viết mới
 router.post('/create', 
     protect, 
     verifyProMiddleware, 
@@ -51,16 +43,12 @@ router.delete('/delete/:articleId',
 );
 
 
-// ==========================================
-// CÁC ROUTES DÀNH CHO NGƯỜI DÙNG/KHÁCH (GUEST)
-// ==========================================
-router.get('/', articleController.getPublicArticles); // Xem danh sách bài viết public
-// Bài viết nổi bật
+router.get('/', articleController.getPublicArticles); 
+
 router.get('/featured', articleController.getFeaturedArticles);
 
 router.get('/user/:userId', articleController.getUserArticles);
 
-router.get('/:articleId', articleController.getArticleById); // Xem chi tiết 1 bài viết
-
+router.get('/:articleId', articleController.getArticleById); 
 
 module.exports = router;

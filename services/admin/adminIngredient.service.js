@@ -1,27 +1,17 @@
-// VỊ TRÍ: backend/services/admin/adminIngredient.service.js
 const { v4: uuidv4 } = require('uuid');
 const IngredientModel = require('../../models/ingredient.model');
 const AppError = require('../../utils/AppError');
 
 class AdminIngredientService {
 
-    /**
-     * [THÊM MỚI] Lấy danh sách category không trùng lặp
-     */
     async getAllCategories() {
         return await IngredientModel.getDistinctCategories();
     }
 
-    /**
-     * Lấy danh sách nguyên liệu đang chờ duyệt
-     */
     async getPendingIngredients() {
         return await IngredientModel.getPendingIngredients();
     }
 
-    /**
-     * Duyệt hoặc từ chối nguyên liệu do user đề xuất
-     */
     async processIngredient(id, action, calo_per_100g, category) {
         if (action === 'approve') {
             await IngredientModel.updateStatus(id, 'approved');
@@ -38,9 +28,6 @@ class AdminIngredientService {
         }
     }
 
-    /**
-     * Lấy toàn bộ nguyên liệu (có phân trang, search)
-     */
     async getAllIngredients(page, limit, search, sortKey, sortOrder) {
         const offset = (page - 1) * limit;
         const ingredients = await IngredientModel.getAllAdmin(limit, offset, search, sortKey, sortOrder);
@@ -49,9 +36,6 @@ class AdminIngredientService {
         return { ingredients, total, totalPages: Math.ceil(total / limit) };
     }
 
-    /**
-     * Admin tạo nguyên liệu mới
-     */
     async createIngredient(name, calo_per_100g, status, category) {
         if (!name) throw new AppError('Tên nguyên liệu không được để trống', 400);
 
@@ -67,9 +51,6 @@ class AdminIngredientService {
         return ingredientId;
     }
 
-    /**
-     * Cập nhật thông tin nguyên liệu
-     */
     async updateIngredient(id, name, calo_per_100g, status, category) {
         const updateData = {};
         const cleanName = name ? name.trim() : undefined;
@@ -88,9 +69,6 @@ class AdminIngredientService {
         return true;
     }
 
-    /**
-     * Xóa nguyên liệu
-     */
     async deleteIngredient(id) {
         try {
             await IngredientModel.delete(id);

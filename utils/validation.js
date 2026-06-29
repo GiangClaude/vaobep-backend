@@ -1,9 +1,6 @@
-// utils/validation.js
 
-// Kiểm tra postType hợp lệ
 const isValidPostType = (type) => ['recipe', 'article', 'dish'].includes(type);
 
-// Validate input cho báo cáo (report)
 function validateReportInput({ postId, postType, reason }) {
     if (!postId || typeof postId !== 'string' || postId.trim() === '') {
         return { valid: false, message: 'Thiếu hoặc sai postId' };
@@ -17,7 +14,6 @@ function validateReportInput({ postId, postType, reason }) {
     return { valid: true };
 }
 
-// Validate cho Like, Save, State (các hành động chỉ cần postId và postType)
 function validateInteractionInput({ postId, postType }) {
     if (!postId || typeof postId !== 'string' || postId.trim() === '') {
         return { valid: false, message: 'ID bài viết không hợp lệ' };
@@ -48,7 +44,6 @@ function validateCommentInput({ postId, postType, content, parentId }) {
     if (!content || typeof content !== 'string' || content.trim() === '') {
         return { valid: false, message: 'Nội dung bình luận không được để trống' };
     }
-    // parentId có thể null (nếu là comment gốc), nhưng nếu có thì phải là string
     if (parentId && typeof parentId !== 'string') {
         return { valid: false, message: 'ID bình luận cha không hợp lệ' };
     }

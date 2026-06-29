@@ -1,23 +1,18 @@
-/**
- * utils/scoring.utils.js
- * Chứa logic tính điểm chuẩn hóa cho Leaderboard.
- */
 
-// Định nghĩa trọng số (Weights) - Dễ dàng cấu hình và thay đổi sau này
 const WEIGHTS = {
     RECIPE: {
         LIKE: 10,
         COMMENT: 15,
-        RATING_AVG: 20, // Điểm = Trung bình sao * 20 (VD: 5 sao = 100đ)
-        LINK: 5,        // Số lượng article/dish liên kết
+        RATING_AVG: 20, 
+        LINK: 5,       
         TRUSTED: 100,
-        GROWTH: 15,     // Mỗi tương tác tăng thêm (like/cmt) trong tháng x 15
-        REPORT: -50     // Điểm trừ
+        GROWTH: 15,     
+        REPORT: -50    
     },
     USER: {
-        RECIPE_AVG_POINT: 1, // Lấy trung bình điểm các công thức của user
+        RECIPE_AVG_POINT: 1, 
         FOLLOWER: 20,
-        FOLLOWER_GROWTH: 50, // Follower mới trong tháng x 50
+        FOLLOWER_GROWTH: 50, 
         TRUSTED_RECIPE: 150,
         NEW_BADGE: 30
     }

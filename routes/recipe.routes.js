@@ -9,18 +9,9 @@ const { v4: uuidv4 } = require('uuid');
 const { uploadRecipe } = require('../config/multer.config');
 const uploadRecipeImages = uploadRecipe.any();
 
-// Đây là Middleware "Phát vé"
 const generateRecipeId = (req, res, next) => {
-    // 1. Tạo một ID mới
     const newId = uuidv4();
-    
-    // 2. "Gắn" ID này vào đối tượng req (request)
-    // Chúng ta tự đặt tên biến là 'savedRecipeId' để dùng sau này
     req.savedRecipeId = newId;
-    
-    console.log("Đã tạo ID trước: ", req.savedRecipeId);
-
-    // 3. Cho phép đi tiếp sang bước sau (là Multer)
     next();
 }
 

@@ -1,4 +1,3 @@
-// VỊ TRÍ TẠO FILE MỚI: backend/utils/extensionPrompts.js
 
 const VISION_PROMPT = `Bạn là chuyên gia ẩm thực. Dựa vào bức ảnh này, hãy trả lời MỘT TÊN NGẮN GỌN NHẤT của món ăn. 
 Ví dụ: "Phở bò", "Bún chả", "Cơm tấm". 

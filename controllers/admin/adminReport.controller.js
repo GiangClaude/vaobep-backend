@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/controllers/admin/adminReport.controller.js
 const adminReportService = require('../../services/admin/adminReport.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendResponse } = require('../../utils/responseHelper');

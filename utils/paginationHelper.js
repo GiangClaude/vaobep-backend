@@ -1,6 +1,5 @@
-// utils/paginationHelper.js
 const createPagination = (page, limit, totalItems) => {
-  const totalPages = Math.ceil(totalItems / limit); // Làm tròn lên
+  const totalPages = Math.ceil(totalItems / limit); 
 
   return {
     currentPage: page,

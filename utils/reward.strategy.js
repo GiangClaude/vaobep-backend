@@ -1,4 +1,3 @@
-// backend/utils/reward.strategy.js
 const PointTransaction = require('../models/point.model');
 const InventoryModel = require('../models/inventory.model');
 const db = require('../config/db');
@@ -11,16 +10,13 @@ class RewardStrategy {
     }
 }
 
-// 2. Chiến lược cộng Điểm (Cập nhật bảng users và ghi log transaction)
 class PointsReward extends RewardStrategy {
     async apply(userId, value, connection) {
         const amount = parseInt(value);
-        // Cập nhật số điểm trong bảng users
         await connection.execute(
             "UPDATE users SET points = points + ? WHERE user_id = ?",
             [amount, userId]
         );
-        // Ghi log vào Point_Transactions
         return await PointTransaction.create({
             userId,
             type: 'redeem',
@@ -30,15 +26,12 @@ class PointsReward extends RewardStrategy {
     }
 }
 
-// 3. Chiến lược cấp Vật phẩm (Huy hiệu, Vé quảng bá...)
 class ItemReward extends RewardStrategy {
     async apply(userId, itemId, connection) {
-        // value ở đây chính là item_id
         return await InventoryModel.addItem(userId, itemId, 1, connection);
     }
 }
 
-// 4. Factory để lấy Strategy tương ứng
 class RewardFactory {
     static getStrategy(type) {
         switch (type) {

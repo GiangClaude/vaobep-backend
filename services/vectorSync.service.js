@@ -1,14 +1,11 @@
 const db = require('../config/db');
 const aiService = require('./ai.service');
 const vectorStore = require('./vectorstore.service');
-
-// Lấy namespace từ .env, mặc định là 'food-content'
 const PINECONE_NAMESPACE = process.env.PINECONE_NAMESPACE || 'food-content';
 
 /**
- * BƯỚC 1: CÁC HÀM TRUY VẤN GOM DỮ LIỆU (AGGREGATION QUERIES)
+ * CÁC HÀM TRUY VẤN GOM DỮ LIỆU (AGGREGATION QUERIES)
  */
-
 async function getRecipeDataForAI(recipeId) {
     const query = `
         SELECT 
@@ -60,7 +57,6 @@ async function getDishDataForAI(dishId) {
 /**
  * BƯỚC 2: CÁC HÀM FORMAT TEXT CHO AI
  */
-
 function formatRecipeText(data) {
     if (!data) return '';
     return `[LOẠI: CÔNG THỨC NẤU ĂN]
@@ -74,7 +70,6 @@ function formatRecipeText(data) {
 
 function formatArticleText(data) {
     if (!data) return '';
-    // Giới hạn content 1000 ký tự để tiết kiệm token và tránh nhiễu
     const shortContent = data.content ? data.content.substring(0, 1000) : '';
     return `[LOẠI: BÀI VIẾT ẨM THỰC]
         Tiêu đề: ${data.title || ''}
@@ -96,7 +91,6 @@ function formatDishText(data) {
 
 /**
  * HÀM CHÍNH ĐỂ ĐỒNG BỘ LÊN PINECONE
- * Hàm này sẽ được gọi bởi Worker/Job Queue sau này
  */
 async function syncEntityToPinecone(entityId, type, action) {
     try {
@@ -104,7 +98,6 @@ async function syncEntityToPinecone(entityId, type, action) {
 
         // Nếu là hành động xóa (hoặc bị ẩn/ban)
         if (action === 'delete') {
-            // YÊU CẦU: Hàm vectorStore.deleteVector() phải được thêm vào vectorstore.service.js
             if(typeof vectorStore.deleteVector === 'function'){
                 await vectorStore.deleteVector(entityId, PINECONE_NAMESPACE);
                 console.log(`✅ Đã xóa vector [${type}] ID: ${entityId} khỏi Pinecone`);
@@ -136,10 +129,8 @@ async function syncEntityToPinecone(entityId, type, action) {
             metadata = { id: entityId, type: 'dish', title: data.original_name, status: 'public' }; // Dish luôn coi là public
         }
 
-        // Gọi Gemini lấy Embedding Vector
         const vectorValues = await aiService.getEmbedding(textToEmbed);
 
-        // Đẩy lên Pinecone
         const vectorData = [{
             id: entityId,
             values: vectorValues,
@@ -147,11 +138,11 @@ async function syncEntityToPinecone(entityId, type, action) {
         }];
 
         await vectorStore.upsert(vectorData, PINECONE_NAMESPACE);
-        console.log(`✅ Đã Upsert thành công [${type}] ID: ${entityId} lên Pinecone`);
+        console.log(`Đã Upsert thành công [${type}] ID: ${entityId} lên Pinecone`);
 
     } catch (error) {
-        console.error(`❌ Lỗi đồng bộ Pinecone cho [${type}] ID: ${entityId}:`, error.message);
-        throw error; // Ném lỗi ra để Queue (BullMQ) biết đường chạy lại nếu cần
+        console.error(`Lỗi đồng bộ Pinecone cho [${type}] ID: ${entityId}:`, error.message);
+        throw error;
     }
 }
 

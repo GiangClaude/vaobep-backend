@@ -3,16 +3,16 @@ require('./services/vectorQueue.service');
 
 const express = require('express');
 const cors = require('cors');
-const db = require('./config/db'); // Import module database
+const db = require('./config/db'); 
 const path = require('path');
 const app = express();
-const port = process.env.PORT || 5000; // Cổng cho backend
+const port = process.env.PORT || 5000; 
 const AppError = require('./utils/AppError');
 const errorHandler = require('./middlewares/error.middleware');
 
 
 const allowedOrigins = [
-    'http://localhost:3000',      // Frontend React chạy local
+    'http://localhost:3000',      
     'http://127.0.0.1:3000',
     'chrome-extension://*', 
     'https://vaobep-frontend.vercel.app',
@@ -38,8 +38,6 @@ app.use(cors({
     credentials: true
 }));
 
-// Sử dụng express.json() để parse body của request dưới dạng JSON
-// VỊ TRÍ: backend/server.js (Chỗ cấu hình middleware)
 const extensionRoutes = require('./routes/extension.routes');
 app.use('/api/extension', express.json({ limit: '10mb' }), extensionRoutes);
 
@@ -47,7 +45,6 @@ app.use('/api/extension', express.json({ limit: '10mb' }), extensionRoutes);
 app.use(express.json({ limit: '500kb' })); 
 app.use(express.urlencoded({ limit: '500kb', extended: true }));
 
-// Cho phép xem file public/user
 app.use('/uploads', express.static(path.join(__dirname, 'public/user')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
@@ -62,14 +59,11 @@ const adminRoutes = require('./routes/admin.routes');
 const tagRoutes = require('./routes/tag.routes');
 const interactionRoutes = require('./routes/interaction.routes');
 const dictionaryDishRoutes = require('./routes/dictionaryDish.routes');
-// const chatbotRoutes = require('./routes/chatbot.routes');
 const leaderboardRoutes = require('./routes/leaderboard.routes');
 const rewardRoutes = require('./routes/reward.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
 
 const AiRoutes = require('./routes/ai.routes');
-// const recipeAiRoutes = require('./routes/recipeAi.routes');
-// Kiểm tra kết nối database khi khởi động server
 db.testDbConnection();
 
 // Route Xác thực

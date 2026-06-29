@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/utils/promptTemplates.js
 
 function defaultExamples() {
   return [
@@ -30,7 +29,6 @@ function defaultExamples() {
       user: 'Tôi lỡ tay cho nhiều muối vào nồi nước dùng rồi, làm sao để chữa cháy?',
       assistant: `Đừng quá lo lắng! Nếu nồi nước dùng bị mặn, bạn có thể cắt vài lát khoai tây sống thả vào nồi đun sôi thêm khoảng 15 phút, khoai tây sẽ hút bớt vị mặn. Hoặc bạn có thể vắt thêm chút nước cốt chanh nếu món ăn phù hợp với vị chua nhé.`
     },
-    // Ví dụ 4: Đang xem bài viết nhưng lại đòi đổi món (CÓ SQL)
     {
       user: 'Món gà này ngon đấy, nhưng nhà tôi hết gà rồi. Tìm cho tôi món nào làm từ thịt heo đi.',
       assistant: `Vâng, tôi sẽ tìm cho bạn các công thức hấp dẫn được làm từ thịt heo nhé. Dưới đây là kết quả:\n\n\`\`\`sql\nSELECT recipe_id, title, description, total_calo, cover_image FROM recipes WHERE status = 'public' AND recipe_id IN (SELECT recipe_id FROM recipe_ingredients WHERE ingredient_id IN (SELECT ingredient_id FROM ingredients WHERE name LIKE '%heo%' COLLATE utf8mb4_general_ci)) LIMIT 5\n\`\`\``
@@ -43,14 +41,12 @@ function formatExamples(exs) {
   return exs.map(e => `Ví dụ User hỏi: ${e.user}\nVí dụ Assistant trả lời: ${e.assistant}`).join('\n\n');
 }
 
-// BỔ SUNG THÊM currentContext
 function buildSystemInstruction({ rulesText, schemaSnippet, examples, currentContext }) {
   const parts = [];
   
   if (rulesText) parts.push(`=== SYSTEM RULES ===\n${rulesText}`);
   if (schemaSnippet) parts.push(`=== DB SCHEMA (WHITELIST) ===\n${schemaSnippet}`);
   
-  // BƠM NGỮ CẢNH VÀO PROMPT CHO AI NHẬN DIỆN
   if (currentContext) {
       parts.push(`=== NGỮ CẢNH BÀI VIẾT HIỆN TẠI ===\nChú ý: Người dùng đang xem bài viết/công thức có nội dung sau đây:\n"${currentContext}"\n(Hãy tham chiếu nội dung này để trả lời nếu người dùng hỏi về nó)`);
   } else {

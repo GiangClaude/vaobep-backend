@@ -1,39 +1,20 @@
 const nodemailer = require('nodemailer')
 
-//Tạo hàm test
-const createTestTransporter = async () => {
-    const testAccount = await nodemailer.createTestAccount();
-
-    return nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-            user: testAccount.user, // Tên user Ethereal
-            pass: testAccount.pass, // Mật khẩu Ethereal
-        },
-        tls: {
-            rejectUnauthorized: false 
-        }
-    });
-};
-
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: process.env.EMAIL_PORT,
-    secure: process.env.EMAIL_SECURE === 'true', // true cho port 465
+    secure: process.env.EMAIL_SECURE === 'true', 
 
     tls: {
         rejectUnauthorized: false
     },
     
     auth: {
-        user: process.env.EMAIL_USER, // Gmail của bạn
-        pass: process.env.EMAIL_PASS, // Mật khẩu ứng dụng 16 ký tự
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS, 
     },
 })
 
-// Hàm gửi mail
 const sendEmail = async(toEmail, subject, htmlContent) => {
     try {
 
@@ -46,11 +27,9 @@ const sendEmail = async(toEmail, subject, htmlContent) => {
 
         console.log('Message sent: %s', info.messageId);
 
-        // console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
 
         return {
             success: true,
-            // url: nodemailer.getTestMessageUrl(info)
         }
     } catch (error) {
         console.error('Error sending email: ', error);
@@ -69,7 +48,7 @@ const sendVerificationEmail = (toEmail, otp) => {
     return sendEmail(toEmail, subject, html);
 };
 
-// Hàm gửi email cho Quên mật khẩu (Template mới)
+// Hàm gửi email cho Quên mật khẩu
 const sendPasswordResetEmail = (toEmail, otp) => {
     const subject = "YÊU CẦU ĐẶT LẠI MẬT KHẨU VÀO BẾP";
     const html = `

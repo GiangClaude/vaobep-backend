@@ -1,4 +1,3 @@
-const fsPromises = require('fs').promises; // SỬ DỤNG PROMISES
 const path = require('path');
 const db = require('../config/db');
 const AppError = require('../utils/AppError');
@@ -7,9 +6,10 @@ const ArticleModel = require('../models/article.model');
 const TagModel = require('../models/tag.model');
 const InteractionModel = require('../models/interaction.model');
 const RecipeLinkModel = require('../models/recipe_link.model');
-const fs = require('fs'); // Giữ lại cho existsSync nếu cần, nhưng ưu tiên try-catch với promise
+const fs = require('fs'); 
 const { deleteCloudinaryImage } = require('../utils/cloudinary');
 const { DEFAULT_ARTICLE_IMG } = require('../config/constants');
+
 const checkArticleOwner = async (articleId, userId) => {
     try {
         const sql = 'SELECT user_id FROM article_posts WHERE article_id = ?';
@@ -23,7 +23,6 @@ const checkArticleOwner = async (articleId, userId) => {
 };
 
 class ArticleService {
-    // ... (Giữ nguyên hàm createArticle)
     async createArticle(userId, articleId, body, files) {
         const connection = await db.pool.getConnection();
         try {
@@ -97,12 +96,11 @@ class ArticleService {
                 }
             }
 
-            // 2. NẾU USER UPLOAD ẢNH MỚI
             if (files && files['cover_image'] && files['cover_image'].length > 0) {
                 if (article.cover_image && article.cover_image !== DEFAULT_ARTICLE_IMG) {
-                    deleteCloudinaryImage(article.cover_image); // Xóa ảnh cũ
+                    deleteCloudinaryImage(article.cover_image);
                 }
-                updateData.cover_image = files['cover_image'][0].path; // Dùng .path
+                updateData.cover_image = files['cover_image'][0].path;
             }
 
 
@@ -155,21 +153,15 @@ class ArticleService {
         return true;
     }
 
-    // ... (Toàn bộ các hàm getPublicArticles, getFeaturedArticles, getOwnerArticles, getArticleById, getSavedArticles bên dưới giữ nguyên 100% của bạn)
-/**
-     * Lấy danh sách bài viết công khai có phân trang, tìm kiếm và lọc theo thẻ tags.
-     * Đã sửa lỗi không nhận diện được key 'tags[]' do Axios tự động ép định dạng mảng.
-     */
+
     async getPublicArticles(query, userId) {
         const page = parseInt(query.page) || 1;
         const limit = parseInt(query.limit) || 5;
         const offset = (page - 1) * limit;
         
-        // SỬA THÊM: Chấp nhận cả query.search (từ frontend của bà gửi lên) lẫn query.q
         const keyword = query.search || query.q || ""; 
         const sort = query.sort || "newest"; 
 
-        // SỬA CHÍNH TẠI ĐÂY: Lấy dữ liệu từ 'tags' hoặc 'tags[]' để tương thích toàn diện
         let tagIds = [];
         const rawTags = query.tags || query['tags[]']; 
         
@@ -177,12 +169,10 @@ class ArticleService {
             if (Array.isArray(rawTags)) {
                 tagIds = rawTags;
             } else if (typeof rawTags === 'string') {
-                // Phòng trường hợp frontend gửi chuỗi dạng "ID1,ID2"
                 tagIds = rawTags.split(',').filter(id => id.trim() !== "");
             }
         }
         
-        // console.log("Service đã nhận tagIds chuẩn:", query, tagIds);
 
         const [articles, totalItems] = await Promise.all([
             ArticleModel.getPublicArticles({ limit, offset, keyword, tagIds, sort }),
@@ -317,31 +307,26 @@ class ArticleService {
         const limit = parseInt(query.limit) || 10;
         const offset = (page - 1) * limit;
 
-        // 1. Kiểm tra User tồn tại và Role của họ
         const [users] = await db.pool.execute('SELECT role FROM users WHERE user_id = ?', [targetUserId]);
         if (users.length === 0) {
             throw new AppError('Người dùng không tồn tại!', 404);
         }
 
         const targetRole = users[0].role;
-        // Nếu user thường không có chức năng viết bài, trả về mảng rỗng luôn cho nhẹ DB
         if (targetRole !== 'pro' && targetRole !== 'admin') {
             return { articlesWithDetails: [], page, limit, totalItems: 0 };
         }
 
-        // 2. Lấy data từ DB
         const [articles, totalItems] = await Promise.all([
             ArticleModel.getPublicArticlesByUserId(targetUserId, limit, offset),
             ArticleModel.countPublicArticlesByUserId(targetUserId)
         ]);
 
-        // 3. Format dữ liệu (Gắn tags)
         const articlesWithDetails = await Promise.all(articles.map(async (article) => {
             const tags = await TagModel.getTagsByPostId(article.article_id);
             return { ...article, tags };
         }));
 
-        // 4. Nếu người xem đang đăng nhập, kiểm tra xem họ đã tim/lưu bài này chưa
         if (currentUserId && articlesWithDetails.length > 0) {
             const postIds = articlesWithDetails.map(a => a.article_id);
             const interactionStates = await InteractionModel.getBatchInteractionState(currentUserId, postIds, 'article');

@@ -1,4 +1,3 @@
-// backend/utils/responseHelper.js
 const sendResponse = (res, statusCode, success, message, data = null, meta = null) => {
     const responsePayload = {
         success,
