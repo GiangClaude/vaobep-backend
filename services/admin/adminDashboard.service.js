@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/services/admin/adminDashboard.service.js
 const UserModel = require('../../models/user.model');
 const RecipeModel = require('../../models/recipe.model');
 const ArticleModel = require('../../models/article.model');
@@ -6,11 +5,7 @@ const DictionaryDishModel = require('../../models/dictionaryDish.model');
 const IngredientModel = require('../../models/ingredient.model');
 
 class AdminDashboardService {
-    /**
-     * Lấy toàn bộ số liệu thống kê cho trang Dashboard của Admin
-     */
     async getDashboardStats() {
-        // Chạy song song các query để tối ưu hiệu suất
         const [
             totalUsers, totalRecipes, totalArticles, 
             totalDishes, totalIngredients, userGrowth, 

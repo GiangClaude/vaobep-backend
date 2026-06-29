@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/controllers/admin/adminDashboard.controller.js
 const adminDashboardService = require('../../services/admin/adminDashboard.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendResponse } = require('../../utils/responseHelper');

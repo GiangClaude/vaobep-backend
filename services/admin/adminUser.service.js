@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/services/admin/adminUser.service.js
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs').promises;
 const path = require('path');
@@ -8,9 +7,6 @@ const authUtils = require('../../utils/auth.utils');
 const AppError = require('../../utils/AppError');
 
 class AdminUserService {
-    /**
-     * Lấy danh sách User (Có phân trang, tìm kiếm, sort)
-     */
     async getUsers(page, limit, search, sortKey, sortOrder) {
         const offset = (page - 1) * limit;
         const users = await UserModel.getAllUsers(limit, offset, search, sortKey, sortOrder);
@@ -19,18 +15,12 @@ class AdminUserService {
         return { users, total, totalPages: Math.ceil(total / limit) };
     }
 
-    /**
-     * Khóa hoặc mở khóa User
-     */
     async toggleUserStatus(id, status) {
         if (!['active', 'blocked'].includes(status)) throw new AppError('Invalid status', 400);
         await UserModel.updateStatus(id, status);
         return status;
     }
 
-    /**
-     * Tạo tài khoản mới bởi Admin
-     */
     async createUser(data) {
         const { full_name, email, password, role } = data;
         
@@ -55,13 +45,11 @@ class AdminUserService {
             otpExpires
         });
 
-        // Gửi email xác thực
         const emailResult = await emailUtils.sendVerificationEmail(email, otp);
         if (!emailResult.success) {
             throw new AppError('Tạo tài khoản thành công nhưng gửi email xác thực thất bại.', 500);
         }
 
-        // Tạo thư mục cá nhân cho user
         const userFolderPath = path.join(__dirname, '../../../public/user', userId.toString());
         try {
             await fs.mkdir(userFolderPath, { recursive: true });
@@ -72,18 +60,12 @@ class AdminUserService {
         return userId;
     }
 
-    /**
-     * Lấy chi tiết User
-     */
     async getUserDetail(id) {
         const user = await UserModel.findByIdForAdmin(id);
         if (!user) throw new AppError('User not found', 404);
         return user;
     }
 
-    /**
-     * Cập nhật thông tin User (Phân quyền, Trạng thái)
-     */
     async updateUser(id, data) {
         const { role, account_status } = data;
 

@@ -1,4 +1,3 @@
-// backend/services/aiHistory.service.js
 const { createClient } = require('redis');
 
 class AIHistoryService {

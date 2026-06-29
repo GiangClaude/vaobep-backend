@@ -1,5 +1,3 @@
-<!-- VỊ TRÍ: backend/config/chatbot.schema.md -->
-
 # DATABASE SCHEMA (WHITELIST ONLY)
 Chỉ sử dụng các bảng và cột dưới đây để tạo câu lệnh SQL.
 

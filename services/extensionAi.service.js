@@ -1,4 +1,3 @@
-// backend/services/extensionAi.service.js
 const llmProvider = require('./llm.provider');
 const { VISION_PROMPT, CONTEXT_PROMPT } = require('../utils/extensionPrompts');
 const EXTENSION_MODEL = process.env.EXTENSION_GEMINI_MODEL || 'gemini-2.5-flash-lite';

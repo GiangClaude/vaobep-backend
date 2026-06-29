@@ -1,4 +1,3 @@
-// VỊ TRÍ: backend/controllers/admin/adminIngredient.controller.js
 const adminIngredientService = require('../../services/admin/adminIngredient.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendResponse } = require('../../utils/responseHelper');
@@ -16,7 +15,6 @@ const getPendingIngredients = asyncHandler(async (req, res) => {
 const processIngredient = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { action, calo_per_100g, category } = req.body;
-    console.log("AdminIng-Process: ", category);
     const message = await adminIngredientService.processIngredient(id, action, calo_per_100g, category);
     sendResponse(res, 200, true, message);
 });
@@ -34,7 +32,7 @@ const getAllIngredients = asyncHandler(async (req, res) => {
 });
 
 const createIngredient = asyncHandler(async (req, res) => {
-      const { name, calo_per_100g, status, category } = req.body;
+    const { name, calo_per_100g, status, category } = req.body;
     const ingredientId = await adminIngredientService.createIngredient(name, calo_per_100g, status, category);
     sendResponse(res, 201, true, 'Thêm nguyên liệu thành công', { ingredientId });
 });
@@ -42,7 +40,6 @@ const createIngredient = asyncHandler(async (req, res) => {
 const updateIngredient = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { name, calo_per_100g, status, category } = req.body;
-    console.log("AdminIng: ", category);
     await adminIngredientService.updateIngredient(id, name, calo_per_100g, status, category);
     sendResponse(res, 200, true, 'Cập nhật nguyên liệu thành công');
 });
