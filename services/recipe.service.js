@@ -110,7 +110,7 @@ class RecipeService {
 
             await connection.commit();
 
-            if (newRecipe.status === 'public' || newRecipe.status === 'hidden') {
+            if (newRecipe.status === 'public') {
                 addVectorSyncJob(recipeId, 'recipe', 'upsert');
             }
 
@@ -234,7 +234,7 @@ class RecipeService {
 
             await connection.commit();
 
-            if (recipeData.status === 'public' || recipeData.status === 'hidden') {
+            if (recipeData.status === 'public') {
                 addVectorSyncJob(recipeId, 'recipe', 'upsert');
             } else {
                 addVectorSyncJob(recipeId, 'recipe', 'delete');
@@ -276,7 +276,7 @@ class RecipeService {
         const success = await RecipeModel.updateStatus(recipeId, status);
         if (!success) throw new AppError('Không tìm thấy công thức để cập nhật.', 404);
 
-        if (status === 'public' || status === 'hidden') {
+        if (status === 'public') {
             addVectorSyncJob(recipeId, 'recipe', 'upsert');
         } else {
             addVectorSyncJob(recipeId, 'recipe', 'delete');
