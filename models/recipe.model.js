@@ -756,6 +756,31 @@ class Recipe{
         const [result] = await pool.execute(sql, params);
         return result.affectedRows > 0;
     }
+
+    /**
+     * Lấy thông tin cơ bản (ảnh, calo...) của một danh sách công thức bằng mảng ID
+     * Phục vụ chủ yếu cho việc gài dữ liệu sau khi AI trả về kết quả
+     */
+    static async getBasicInfoByIds(recipeIds) {
+        if (!recipeIds || !Array.isArray(recipeIds) || recipeIds.length === 0) {
+            return [];
+        }
+
+        try {
+            const placeholders = recipeIds.map(() => '?').join(',');
+            const sql = `
+                SELECT recipe_id, cover_image, total_calo 
+                FROM recipes 
+                WHERE recipe_id IN (${placeholders})
+            `;
+            
+            const [rows] = await pool.execute(sql, recipeIds);
+            return rows;
+        } catch (error) {
+            console.error('Lỗi Model (getBasicInfoByIds):', error);
+            throw error;
+        }
+    }
     
 }
 

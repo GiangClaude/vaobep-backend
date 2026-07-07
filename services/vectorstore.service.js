@@ -3,7 +3,7 @@ const PINECONE_ENV = process.env.PINECONE_ENV;
 const PINECONE_INDEX = process.env.PINECONE_INDEX;
 
 
-async function retrieve(embedding, topK = 5) {
+async function retrieve(embedding, topK = 5, filter = null) {
   if (!PINECONE_API_KEY || !PINECONE_ENV || !PINECONE_INDEX) {
     console.error('Thiếu config Pinecone:', { 
       hasKey: !!PINECONE_API_KEY, 
@@ -30,6 +30,10 @@ async function retrieve(embedding, topK = 5) {
     namespace
   };
 
+  if (filter) {
+    body.filter = filter;
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -40,7 +44,6 @@ async function retrieve(embedding, topK = 5) {
   });
 
   const rawText = await res.text(); 
-  console.log('Pinecone raw response:', rawText);
 
   if (!res.ok) {
     console.error('Pinecone retrieve failed, status:', res.status, rawText);

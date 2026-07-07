@@ -4,8 +4,8 @@ const { buildSystemInstruction } = require('../utils/promptTemplates');
 const vs = require('./vectorstore.service');
 const llmProvider = require('./llm.provider');
 const aiHistory = require('./aiHistory.service');
-const AppError = require('../utils/AppError')
-
+const AppError = require('../utils/AppError');
+const RecipeModel = require('../models/recipe.model');
 const LANGFUSE_BASE = process.env.LANGFUSE_BASE_URL;
 const LANGFUSE_KEY = process.env.LANGFUSE_SECRET_KEY;
 
@@ -122,7 +122,12 @@ async function analyzeMenuWithAI(menuData) {
 async function generateMenuWithRAG(prompt) {
     const emb = await getEmbedding(prompt);
     
-    const matches = await vs.retrieve(emb, 20);
+    const filter = {
+        type: { "$eq": "recipe" },
+        status: { "$eq": "public" }
+    };
+    
+    const matches = await vs.retrieve(emb, 20, filter);
     if (!matches || matches.length === 0) throw new Error("Không tìm thấy món ăn phù hợp.");
 
     const recipeContext = matches.map(m => `- ID: ${m.id} | Tên: ${m.metadata?.title}`).join('\n');
@@ -148,8 +153,6 @@ async function generateMenuWithRAG(prompt) {
             {
               "recipe_id": "ID-lấy-từ-danh-sách-món",
               "title": "tiêu đề của recipe",
-              "cover_image": "recipe.cover_image",
-              "total_calo": "recipe.total_calo",
               "servings_multiplier": 1.0
             }
           ]
@@ -159,17 +162,59 @@ async function generateMenuWithRAG(prompt) {
   ]
 Chỉ trả về mảng JSON thuần túy, không kèm theo bất kỳ văn bản giải thích nào khác.`;
 
-    // 5. Khởi tạo thông điệp cho user
     const userMessage = `Danh sách món:\n${recipeContext}\n\nYêu cầu: ${prompt}`;
-
     const contents = [{ role: "user", parts: [{ text: userMessage }] }];
     
-    // 6. Gọi AI với temperature thấp (0.2) để ưu tiên tính chính xác, giảm sự sáng tạo bay bổng
+    console.log("Gửi lên AI để tạo thực đơn với RAG. Prompt:", userMessage);
     const aiText = await llmProvider.callGemini(contents, systemInstruction, { temperature: 0.2 });
 
     const cleanJson = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
     
-    return JSON.parse(cleanJson);
+    let menuData;
+    try {
+        menuData = JSON.parse(cleanJson);
+    } catch (err) {
+        console.error("Lỗi parse JSON từ AI:", cleanJson);
+        throw new Error("AI trả về sai định dạng dữ liệu thực đơn.");
+    }
+
+    // 3. MAP DỮ LIỆU TỪ DATABASE THÔNG QUA RECIPE MODEL
+    const recipeIds = [];
+    menuData.forEach(day => {
+        day.meals?.forEach(meal => {
+            meal.recipes?.forEach(recipe => {
+                if (recipe.recipe_id && !recipeIds.includes(recipe.recipe_id)) {
+                    recipeIds.push(recipe.recipe_id);
+                }
+            });
+        });
+    });
+
+    if (recipeIds.length > 0) {
+        try {
+            const recipesInfo = await RecipeModel.getBasicInfoByIds(recipeIds);
+            
+            const recipeMap = {};
+            recipesInfo.forEach(row => {
+                recipeMap[row.recipe_id] = row;
+            });
+
+            menuData.forEach(day => {
+                day.meals?.forEach(meal => {
+                    meal.recipes?.forEach(recipe => {
+                        const realData = recipeMap[recipe.recipe_id];
+                        recipe.cover_image = realData?.cover_image || "";
+                        recipe.total_calo = realData?.total_calo || 0;
+                    });
+                });
+            });
+            console.log("Đã ánh xạ Cover Image và Total Calo thành công từ DB.");
+        } catch (dbErr) {
+            console.error("Lỗi ánh xạ dữ liệu menu từ db:", dbErr);
+        }
+    }
+
+    return menuData;
 }
 
 async function generateSummary(contextText) {
