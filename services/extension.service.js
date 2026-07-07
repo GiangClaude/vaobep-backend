@@ -1,5 +1,7 @@
 const ExtensionModel = require('../models/extension.model');
 const extensionAiService = require('./extensionAi.service');
+const aiService = require('./ai.service'); 
+const vs = require('./vectorstore.service'); 
 const AppError = require('../utils/AppError');
 
 class ExtensionService {
@@ -16,8 +18,18 @@ class ExtensionService {
     async searchRecipes(query) {
         if (!query) throw new AppError('Thiếu từ khóa tìm kiếm', 400);
         
-        const searchTerm = `%${query.trim()}%`;
-        return await ExtensionModel.searchRecipesByTitle(searchTerm, 5);
+        const embedding = await aiService.getEmbedding(query);
+const filter = {
+            type: { "$eq": "recipe" },
+            status: { "$eq": "public" }
+        };
+        const matches = await vs.retrieve(embedding, 5, filter);
+
+        if (!matches || matches.length === 0) return [];
+
+        const recipeIds = matches.map(m => m.id);
+
+        return await ExtensionModel.getRecipesByIds(recipeIds);
     }
 
     /**
@@ -29,11 +41,11 @@ class ExtensionService {
         const base64Data = image.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
         const dishName = await extensionAiService.identifyDishFromImage(base64Data);
-        
-        const searchTerm = `%${dishName.replace(/["']/g, '').trim()}%`; 
-        const recipes = await ExtensionModel.searchRecipesByTitle(searchTerm, 3);
+        const cleanDishName = dishName.replace(/["']/g, '').trim();
 
-        return { dishName, recipes };
+        const recipes = await this.searchRecipes(cleanDishName);
+
+        return { dishName: cleanDishName, recipes };
     }
 
     /**

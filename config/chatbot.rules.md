@@ -82,3 +82,8 @@ WHERE status = 'public'
 - ĐẶC BIỆT QUAN TRỌNG VỚI TIẾNG VIỆT: Khi dùng mệnh đề `LIKE` để tìm nguyên liệu ngắn (như 'gà', 'bò', 'cá'), BẮT BUỘC phải thêm `COLLATE utf8mb4_bin` ở cuối để tránh lỗi nhận diện sai dấu (Ví dụ: Tránh việc tìm 'gà' nhưng kết quả ra 'gạo'). 
    -> Cú pháp ĐÚNG: `name LIKE '%gà%' COLLATE utf8mb4_bin`
 - Sử dụng cấu trúc Subquery (`IN (SELECT ...)`) thay vì `JOIN` quá nhiều bảng để tránh lỗi SQL.
+
+5. LUÔN PHẢI QUERY THÊM HÌNH ẢNH CỦA RECIPE/ARTICLES/DISH. 
+THuộc tính có tên là cover_image
+
+6. NẾU NGƯỜI DÙNG KHÔNG YÊU CẦU SỐ LƯỢNG CỤ THỂ, CHỈ LẤY `LIMIT 10`
