@@ -19,15 +19,16 @@ class RecipeLinkModel {
 
     static async addLinks(connection, recipeIds, targetId, targetType) {
         if (!recipeIds || recipeIds.length === 0) return;
+        const uniqueRecipeIds = [...new Set(recipeIds)];
 
         const values = [];
-        const placeholders = recipeIds.map(recipeId => {
+        const placeholders = uniqueRecipeIds.map(recipeId => {
             values.push(recipeId, targetId, targetType); 
             return '(?, ?, ?)';
         }).join(', ');
 
         const sql = `
-            INSERT INTO recipe_post_links (source_recipe_id, linked_post_id, linked_post_type) 
+            INSERT IGNORE INTO recipe_post_links (source_recipe_id, linked_post_id, linked_post_type) 
             VALUES ${placeholders}
         `;
         await connection.execute(sql, values);

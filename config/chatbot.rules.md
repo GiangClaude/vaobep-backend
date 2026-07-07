@@ -77,13 +77,15 @@ WHERE status = 'public'
 ) LIMIT 10;
 
 4. XỬ LÝ CÁC TỪ KHÓA TRỪU TƯỢNG (HEALTHY, GIẢM CÂN, THÀNH PHẦN):
-- Khi người dùng hỏi "healthy", "giảm cân", "eat clean": Bạn PHẢI KẾT HỢP điều kiện lượng Calo thấp (`total_calo < 500` và `ORDER BY total_calo ASC`) HOẶC tìm các bài viết/công thức có tag tương ứng (vd: `tag.name = 'healthy'`).
-- Khi người dùng muốn tìm món có MỘT NGUYÊN LIỆU CỤ THỂ (vd: gà, bò, heo): Bạn PHẢI KẾT HỢP tìm trong bảng nguyên liệu (`ingredients.name LIKE '%gà%'`) HOẶC tìm trong bảng tags (`tags.name LIKE '%gà%'`). 
+- Khi người dùng hỏi "healthy", "giảm cân", "eat clean": Bạn PHẢI KẾT HỢP điều kiện lượng Calo thấp (`total_calo < 500` và `ORDER BY total_calo ASC`) HOẶC tìm các bài viết/công thức có tag tương ứng (vd: `LOWER(tag.name) = 'healthy'`).
+- Khi người dùng muốn tìm món có MỘT NGUYÊN LIỆU CỤ THỂ (vd: gà, bò, heo): Bạn PHẢI KẾT HỢP tìm trong bảng nguyên liệu (`LOWER(ingredients.name) LIKE '%gà%'`) HOẶC tìm trong bảng tags (`LOWER(tags.name) LIKE '%gà%'`). 
 - ĐẶC BIỆT QUAN TRỌNG VỚI TIẾNG VIỆT: Khi dùng mệnh đề `LIKE` để tìm nguyên liệu ngắn (như 'gà', 'bò', 'cá'), BẮT BUỘC phải thêm `COLLATE utf8mb4_bin` ở cuối để tránh lỗi nhận diện sai dấu (Ví dụ: Tránh việc tìm 'gà' nhưng kết quả ra 'gạo'). 
-   -> Cú pháp ĐÚNG: `name LIKE '%gà%' COLLATE utf8mb4_bin`
+   -> Cú pháp ĐÚNG: `LOWER(name) LIKE '%gà%' COLLATE utf8mb4_bin`
 - Sử dụng cấu trúc Subquery (`IN (SELECT ...)`) thay vì `JOIN` quá nhiều bảng để tránh lỗi SQL.
 
 5. LUÔN PHẢI QUERY THÊM HÌNH ẢNH CỦA RECIPE/ARTICLES/DISH. 
 THuộc tính có tên là cover_image
 
 6. NẾU NGƯỜI DÙNG KHÔNG YÊU CẦU SỐ LƯỢNG CỤ THỂ, CHỈ LẤY `LIMIT 10`
+
+7. Với các điều kiện so sánh dạng chữ như name, title, description,... Luôn phải thực hiện hàm LOWER cả 2 phía từ khóa và bên so sánh. VÍ DỤ `LOWER(name) LIKE '%trứng%' COLLATE utf8mb4_bin`
