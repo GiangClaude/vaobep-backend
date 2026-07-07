@@ -158,12 +158,24 @@ const DictionaryDish = {
         });
 
         await Promise.all(promises);
+
+        await pool.execute(
+            `UPDATE dictionary_dishes 
+             SET eatery_count = (SELECT COUNT(*) FROM dish_eateries WHERE dish_id = ?) 
+             WHERE dish_id = ?`,
+            [dishId, dishId]
+        );
     },
 
     // Xóa toàn bộ Eateries của 1 món ăn
     deleteEateriesByDishId: async (dishId) => {
         const query = `DELETE FROM dish_eateries WHERE dish_id = ?`;
         await pool.execute(query, [dishId]);
+
+        await pool.execute(
+            `UPDATE dictionary_dishes SET eatery_count = 0 WHERE dish_id = ?`,
+            [dishId]
+        );
     },
 
     // Lấy tọa độ trung tâm của một quốc gia

@@ -68,18 +68,30 @@ class Interaction {
             let isLiked = false;
 
             if (exists.length > 0) {
-                await connection.execute(
-                    `DELETE FROM likes WHERE user_id = ? AND post_id = ? AND post_type = ?`,
-                    [userId, postId, postType]
-                );
-                isLiked = false;
-            } else {
-                await connection.execute(
-                    `INSERT INTO likes (user_id, post_id, post_type) VALUES (?, ?, ?)`,
-                    [userId, postId, postType]
-                );
-                isLiked = true;
-            }
+                    // Xóa like
+                    await connection.execute(
+                        `DELETE FROM likes WHERE user_id = ? AND post_id = ? AND post_type = ?`,
+                        [userId, postId, postType]
+                    );
+                    // Trừ đi 1 lượt like ở bảng gốc
+                    await connection.execute(
+                        `UPDATE ${targetTable} SET like_count = GREATEST(like_count - 1, 0) WHERE ${idColumn} = ?`,
+                        [postId]
+                    );
+                    isLiked = false;
+                } else {
+                    // Thêm like
+                    await connection.execute(
+                        `INSERT INTO likes (user_id, post_id, post_type) VALUES (?, ?, ?)`,
+                        [userId, postId, postType]
+                    );
+                    // Cộng thêm 1 lượt like ở bảng gốc
+                    await connection.execute(
+                        `UPDATE ${targetTable} SET like_count = like_count + 1 WHERE ${idColumn} = ?`,
+                        [postId]
+                    );
+                    isLiked = true;
+                }
 
             if (postType === 'recipe') {
                 await LeaderboardModel.syncRecipePoint(connection, postId);
@@ -131,6 +143,12 @@ class Interaction {
             const commentId = crypto.randomUUID();
             const sqlInsert = `INSERT INTO comments (comment_id, user_id, post_id, post_type, content, parent_id) VALUES (?, ?, ?, ?, ?, ?)`;
             await connection.execute(sqlInsert, [commentId, userId, postId, postType, content, parentId]);
+
+            await connection.execute(
+                `UPDATE ${targetTable} SET comment_count = comment_count + 1 WHERE ${idColumn} = ?`,
+                [postId]
+            );
+
 
             if (parentId) {
                 let currentParentId = parentId;
@@ -245,11 +263,26 @@ class Interaction {
                     `SELECT parent_id FROM comments WHERE comment_id = ?`, [commentId]
                 );
                 const topParentId = targetComment[0]?.parent_id;
+                const postId = targetComment[0]?.post_id;
+                const postType = targetComment[0]?.post_type;
 
                 const totalToRemove = idsToDelete.length;
                 const placeholders = idsToDelete.map(() => '?').join(',');
                 const sqlDelete = `DELETE FROM comments WHERE comment_id IN (${placeholders})`;
                 await connection.execute(sqlDelete, idsToDelete);
+
+                let targetTable = '';
+                let idColumn = '';
+                if (postType === 'recipe') { targetTable = 'recipes'; idColumn = 'recipe_id'; }
+                else if (postType === 'article') { targetTable = 'article_posts'; idColumn = 'article_id'; }
+                else if (postType === 'dish') { targetTable = 'dictionary_dishes'; idColumn = 'dish_id'; }
+
+                if (targetTable) {
+                    await connection.execute(
+                        `UPDATE ${targetTable} SET comment_count = GREATEST(comment_count - ?, 0) WHERE ${idColumn} = ?`,
+                        [totalToRemove, postId]
+                    );
+                }
 
                 // Nếu nó có cha, cập nhật trừ reply_count cho các cấp bên trên
                 if (topParentId) {

@@ -2,6 +2,21 @@ const db = require('../config/db');
 const pool = db.pool;
 
 class RecipeLinkModel {
+
+    static async _syncRecipeLinkCount(connection, targetId, targetType) {
+        if (targetType === 'dish') {
+            await connection.execute(
+                `UPDATE dictionary_dishes 
+                 SET recipe_link_count = (
+                     SELECT COUNT(*) FROM recipe_post_links 
+                     WHERE linked_post_id = ? AND linked_post_type = 'dish'
+                 ) 
+                 WHERE dish_id = ?`,
+                [targetId, targetId]
+            );
+        }
+    }
+
     static async addLinks(connection, recipeIds, targetId, targetType) {
         if (!recipeIds || recipeIds.length === 0) return;
 
@@ -16,6 +31,8 @@ class RecipeLinkModel {
             VALUES ${placeholders}
         `;
         await connection.execute(sql, values);
+
+        await this._syncRecipeLinkCount(connection, targetId, targetType);
     }
     static async updateLinks(connection, targetId, targetType, newRecipeIds) {
         const sqlDelete = `
@@ -26,6 +43,8 @@ class RecipeLinkModel {
 
         if (newRecipeIds && newRecipeIds.length > 0) {
             await this.addLinks(connection, newRecipeIds, targetId, targetType);
+        } else {
+            await this._syncRecipeLinkCount(connection, targetId, targetType);
         }
     }
 
@@ -77,11 +96,15 @@ static async getRecipesByPost(userId = null, targetId, targetType) {
             [recipeId, postId, postType]
         );
 
-        await connection.execute(
+        const [deleteResult] = await connection.execute(
                 `DELETE FROM recipe_post_links 
                  WHERE source_recipe_id = ? AND linked_post_id = ? AND linked_post_type = ? AND vote_count <= 0`,
                 [recipeId, postId, postType]
             );
+
+        if (deleteResult.affectedRows > 0) {
+                await this._syncRecipeLinkCount(connection, postId, postType);
+            }
         return { action: 'unvoted' };
     } else {
         // TRƯỜNG HỢP 2: CHƯA VOTE -> THỰC HIỆN VOTE (Logic cũ của bạn)
@@ -95,12 +118,14 @@ static async getRecipesByPost(userId = null, targetId, targetType) {
                 `INSERT INTO recipe_post_links (source_recipe_id, linked_post_id, linked_post_type, vote_count) VALUES (?, ?, ?, 1)`,
                 [recipeId, postId, postType]
             );
+            await this._syncRecipeLinkCount(connection, postId, postType);
         } else {
             await connection.execute(
                 `UPDATE recipe_post_links SET vote_count = vote_count + 1 
                  WHERE source_recipe_id = ? AND linked_post_id = ? AND linked_post_type = ?`,
                 [recipeId, postId, postType]
             );
+
         }
         await connection.execute(
             `INSERT INTO recipe_link_votes (user_id, recipe_id, post_id) VALUES (?, ?, ?)`,
@@ -115,6 +140,7 @@ static async getRecipesByPost(userId = null, targetId, targetType) {
             `DELETE FROM recipe_post_links WHERE source_recipe_id = ? AND linked_post_id = ? AND linked_post_type = ?`,
             [recipeId, postId, postType]
         );
+         await this._syncRecipeLinkCount(connection, postId, postType);
     }
 }
 
