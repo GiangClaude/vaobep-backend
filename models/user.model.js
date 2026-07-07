@@ -94,7 +94,6 @@ class User {
                 (SELECT COUNT(*) FROM saved_posts s WHERE s.user_id = u.user_id) as saved_count
             FROM users u 
             WHERE u.user_id = ?
-            -- KHÔNG CÓ filter account_status = 'active' ở đây
         `;
         const [rows] = await pool.execute(sql, [id]);
         
@@ -146,7 +145,7 @@ class User {
                     (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = ? AND f2.following_id = u.user_id) > 0 as is_following
 
                 FROM users u 
-                WHERE u.user_id = ? AND u.account_status = 'active' AND u.role != 'admin'
+                WHERE u.user_id = ? AND u.account_status = 'active'
             `;
             
             const [rows] = await pool.execute(sql, [currentUserId, id]);
@@ -284,7 +283,7 @@ class User {
             const countSql = `
                 SELECT COUNT(*) as total 
                 FROM users u
-                WHERE (full_name LIKE ?) AND account_status = 'active'  AND role != 'admin'
+                WHERE (full_name LIKE ?) AND account_status = 'active'
             `;
             const [countRows] = await pool.execute(countSql, [kw]);
             const totalItems = countRows[0].total;
@@ -310,7 +309,6 @@ class User {
                 LEFT JOIN follows f ON u.user_id = f.following_id
                 WHERE (u.full_name LIKE ?) 
                   AND u.account_status = 'active'
-                  AND u.role != 'admin'
                 GROUP BY u.user_id
                 ORDER BY ${orderBy}
                 LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
