@@ -160,8 +160,9 @@ class ArticleService {
         const offset = (page - 1) * limit;
         
         const keyword = query.search || query.q || ""; 
-        const sort = query.sort || "newest"; 
-
+        const sortKey = query.sortKey || "newest"; 
+        const sortOrder = query.sortOrder || "desc";
+        console.log('Get public articles: ', query);
         let tagIds = [];
         const rawTags = query.tags || query['tags[]']; 
         
@@ -175,7 +176,7 @@ class ArticleService {
         
 
         const [articles, totalItems] = await Promise.all([
-            ArticleModel.getPublicArticles({ limit, offset, keyword, tagIds, sort }),
+            ArticleModel.getPublicArticles({ limit, offset, keyword, tagIds, sortKey, sortOrder }),
             ArticleModel.countPublicArticles({ keyword, tagIds })
         ]);
 

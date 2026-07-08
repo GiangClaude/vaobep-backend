@@ -122,8 +122,9 @@ const ArticleModel = {
     },
 
     // 4. Lấy danh sách bài viết (Public - Cho trang Học thuật)
-    getPublicArticles: async ({ limit, offset, keyword, tagIds, sort }) => {
+    getPublicArticles: async ({ limit, offset, keyword, tagIds, sortKey, sortOrder }) => {
         let params = [];
+        console.log('Fetching public articles with params:', { limit, offset, keyword, tagIds, sortKey, sortOrder });
         let query = `
             SELECT a.article_id, a.title, a.description, a.cover_image, a.created_at, a.comment_count, a.read_time, a.like_count,
                    u.full_name as author_name, u.avatar as author_avatar, u.user_id as author_id,
@@ -168,23 +169,25 @@ const ArticleModel = {
             params.push(...tagIds, tagIds.length);
         }
 
-        
-        // 3. Xử lý Sắp xếp (Sort)
-        switch (sort) {
-            case 'featured':
-                query += ` ORDER BY score DESC`;
-                break;
-            case 'read_time_asc':
-                query += ` ORDER BY a.read_time ASC`;
-                break;
-            case 'read_time_desc':
-                query += ` ORDER BY a.read_time DESC`;
-                break;
-            case 'newest':
-            default:
-                query += ` ORDER BY a.created_at DESC`;
-                break;
+        if (sortKey && sortOrder) {
+            query += ` ORDER BY ${sortKey} ${sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'}`;
         }
+        // // 3. Xử lý Sắp xếp (Sort)
+        // switch (sortKey) {
+        //     case 'featured':
+        //         query += ` ORDER BY score DESC`;
+        //         break;
+        //     case 'read_time_asc':
+        //         query += ` ORDER BY a.read_time ASC`;
+        //         break;
+        //     case 'read_time_desc':
+        //         query += ` ORDER BY a.read_time DESC`;
+        //         break;
+        //     case 'newest':
+        //     default:
+        //         query += ` ORDER BY a.created_at DESC`;
+        //         break;
+        // }
 
         // 4. Phân trang
         query += ` LIMIT ${parseInt(limit) || 10} OFFSET ${parseInt(offset) || 0}`;
