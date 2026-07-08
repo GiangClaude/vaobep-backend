@@ -220,7 +220,6 @@ Chỉ trả về mảng JSON thuần túy, không kèm theo bất kỳ văn bả
 async function generateSummary(contextText) {
     const systemInstruction = `Bạn là chuyên gia dinh dưỡng. Tóm tắt nội dung ngắn gọn bằng Markdown. Đọc kỹ và dựa vào thêm các thông tin bên ngoài, đưa ra các lưu ý cần chú ý khi áp dụng công thức.`;
     const contents = [{ role: 'user', parts: [{ text: `Văn bản:\n${contextText}` }] }];
-    
     return await llmProvider.callGemini(contents, systemInstruction, { 
         model: process.env.EXTENSION_GEMINI_MODEL || 'gemini-2.5-flash-lite',
         temperature: 0.3 
@@ -263,7 +262,6 @@ CẤU TRÚC JSON BẮT BUỘC TRẢ VỀ:
     const contents = [{ role: 'user', parts: [{ text: userContent }] }];
 
     const aiText = await llmProvider.callGemini(contents, systemInstruction, { 
-        model: process.env.EXTENSION_GEMINI_MODEL || 'gemini-3.5-flash-lite', 
         temperature: 0.1 
     });
 

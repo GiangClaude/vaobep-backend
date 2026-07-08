@@ -13,7 +13,7 @@ class LLMProvider {
     async callGemini(contents, systemInstructionText = '', options = {}) {
         const apiKey = await getAvailableKey();
         const model = options.model || DEFAULT_MODEL;
-
+        
         if (!apiKey) throw new Error('Missing GOOGLE_API_KEY');
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
