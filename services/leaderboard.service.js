@@ -1,6 +1,6 @@
 const LeaderboardModel = require('../models/leaderboard.model');
 const AppError = require('../utils/AppError');
-
+const redisClient = require('../config/redis');
 class LeaderboardService {
     /**
      * Helper ẩn (private): Kiểm tra xem có phải là tháng hiện tại không
