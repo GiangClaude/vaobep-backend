@@ -27,29 +27,25 @@ const WEIGHTS = {
  * @param {number} stats.linkCount
  * @param {boolean} stats.isTrusted
  * @param {number} stats.reportCount
- * @param {Object} growthStats - Tăng trưởng tuyệt đối trong tháng
+ * @param {Object} growthStats 
  * @param {number} growthStats.newLikes
  * @param {number} growthStats.newComments
- * @returns {number} Điểm tổng
+ * @returns {number}
  */
 const calculateRecipeScore = (stats, growthStats = { newLikes: 0, newComments: 0 }) => {
     let score = 0;
 
-    // Tính điểm tĩnh
     score += (stats.likeCount || 0) * WEIGHTS.RECIPE.LIKE;
     score += (stats.commentCount || 0) * WEIGHTS.RECIPE.COMMENT;
     score += (stats.avgRating || 0) * WEIGHTS.RECIPE.RATING_AVG;
     score += (stats.linkCount || 0) * WEIGHTS.RECIPE.LINK;
     score += stats.isTrusted ? WEIGHTS.RECIPE.TRUSTED : 0;
     
-    // Tính điểm trừ
     score += (stats.reportCount || 0) * WEIGHTS.RECIPE.REPORT;
 
-    // Tính điểm tăng trưởng trong tháng
     const totalNewInteractions = (growthStats.newLikes || 0) + (growthStats.newComments || 0);
     score += totalNewInteractions * WEIGHTS.RECIPE.GROWTH;
 
-    // Đảm bảo điểm không bị âm
     return Math.max(score, 0);
 };
 
