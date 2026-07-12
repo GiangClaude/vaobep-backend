@@ -119,15 +119,25 @@ async function analyzeMenuWithAI(menuData) {
     });
 }
 
-async function generateMenuWithRAG(prompt) {
+async function generateMenuWithRAG(prompt, days) {
     const emb = await getEmbedding(prompt);
     
     const filter = {
         type: { "$eq": "recipe" },
         status: { "$eq": "public" }
     };
+
+     let topK = Math.ceil(days * 3 * 2 * 1.05);
     
-    const matches = await vs.retrieve(emb, 20, filter);
+      // Đảm bảo tối thiểu lấy 20 món (để AI có đủ data trộn ngẫu nhiên)
+      topK = Math.max(10, topK); 
+      
+      // Đảm bảo tối đa lấy 500 món (tránh vượt giới hạn topK của Pinecone và Token của Gemini)
+      topK = Math.min(topK, 500); 
+
+      topK = Math.round(topK); // Làm tròn số lượng món ăn cần lấy
+    
+    const matches = await vs.retrieve(emb, topK, filter);
     if (!matches || matches.length === 0) throw new Error("Không tìm thấy món ăn phù hợp.");
 
     const recipeContext = matches.map(m => `- ID: ${m.id} | Tên: ${m.metadata?.title}`).join('\n');
@@ -162,7 +172,7 @@ async function generateMenuWithRAG(prompt) {
   ]
 Chỉ trả về mảng JSON thuần túy, không kèm theo bất kỳ văn bản giải thích nào khác.`;
 
-    const userMessage = `Danh sách món:\n${recipeContext}\n\nYêu cầu: ${prompt}`;
+    const userMessage = `Danh sách món:\n${recipeContext}\n\nYêu cầu: ${prompt} cho ${days} ngày.`;
     const contents = [{ role: "user", parts: [{ text: userMessage }] }];
     
     console.log("Gửi lên AI để tạo thực đơn với RAG. Prompt:", userMessage);

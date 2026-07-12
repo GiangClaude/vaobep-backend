@@ -111,9 +111,12 @@ class MenuService {
         return await aiService.analyzeMenuWithAI(simplifiedMenu);
     }
 
-    async generateMenuAI(prompt) {
+    async generateMenuAI(prompt, days) {
         if (!prompt) throw new AppError('Thiếu prompt yêu cầu.', 400);
-        return await aiService.generateMenuWithRAG(prompt);
+
+        const numDays = parseInt(days) || 3; 
+
+        return await aiService.generateMenuWithRAG(prompt, numDays);
     }
 }
 

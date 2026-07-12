@@ -75,8 +75,8 @@ const consultMenuAI = asyncHandler(async (req, res) => {
 });
 
 const generateMenuAI = asyncHandler(async (req, res) => {
-    const { prompt } = req.body;
-    const daysData = await MenuService.generateMenuAI(prompt);
+    const { prompt, days } = req.body;
+    const daysData = await MenuService.generateMenuAI(prompt, days);
     sendResponse(res, 200, true, 'Success', daysData);
 });
 
